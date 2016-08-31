@@ -1,6 +1,6 @@
 /* 
 * This file is part of the TITUS software.
-* https://github.com/exapars/
+* https://github.com/exapars/TITUS
 * Copyright (c) 2015-2016 University of Versailles UVSQ
 *
 * TITUS  is a free software: you can redistribute it and/or modify  
@@ -15,16 +15,6 @@
 * You should have received a copy of the GNU Lesser General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-//====================================================================================
-//
-//  AUTHOR  :   UEMURA Seijilo, FONTNAILLE Clément, PETIT Eric 
-//  FILE	: neighboring_generator.cpp
-//  CONTENT	:
-//
-//====================================================================================
-
 
 #include <neighboring_generator.hpp>
 #include "TinyMT/tinymt64.h"

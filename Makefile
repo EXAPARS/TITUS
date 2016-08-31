@@ -1,6 +1,6 @@
 # 
 # This file is part of the TITUS software.
-# https://github.com/exapars/
+# https://github.com/exapars/TITUS
 # Copyright (c) 2015-2016 University of Versailles UVSQ
 #
 # TITUS  is a free software: you can redistribute it and/or modify  
@@ -15,14 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-
-#====================================================================================
-#
-#	AUTHOR	:	UEMURA Seijilo, FONTENAILLE Clément, PETIT Eric
-#	FILE	:	Makefile
-#	CONTENT	:
-#
-#====================================================================================
 
 #================================================================
 #       	lib CONFIGURATION
@@ -52,13 +44,24 @@ else
 	L_MATH = -lm
 endif
 
+# dependencies
+GPI_INC=$(GASPI_HOME)/include
+GPI_LIB=$(GASPI_HOME)/lib64
+
+DLB_INC=$(DLB_HOME)/include
+DLB_LIB=$(DLB_HOME)/lib
+
+DVS_HOME=$(DLB_HOME)/victim_selector
+DVS_INC=$(DVS_HOME)/include
+DVS_LIB=$(DVS_HOME)/lib
+
 # DFLAGS does not defines DEBUG as it has not been maintained
 #! TODO : make debug behaviors -DDEBUG dependant and add it here
 DFLAGS 		= $(DFLAGS_OPT) -g -fkeep-inline-functions -lsupc++
 # always include DFLAGS for debug symbols
-CFLAGS		= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS)
+CFLAGS		= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS) -I$(DLB_INC) -I$(GPI_INC) -I$(DVS_INC)
 CXXFLAGS	= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS)
-LDFLAGS		= -fPIC -shared -lDVS -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
+LDFLAGS		= -fPIC -shared -L$(DVS_LIB) -lDVS -L$(GASPI_LIB) -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
 
 SRC	:= $(wildcard src/*.cpp)
 OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
@@ -66,7 +69,7 @@ OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
 #================================================================
 #       	test CONFIGURATION
 #================================================================
-TEST_LDFLAGS	= -O2 -lDLB -lDVS -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
+TEST_LDFLAGS	= -O2 -L$(DLB_LIB) -lDLB -L$(DVS_LIB) -lDVS -L$(GASPI_LIB) -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
 TEST_CFLAGS     = -W -Wall $(DFLAGS)
 TEST_CXXFLAGS   = $(CXXFLAGS) -W -Wall $(DFLAGS)
 TEST_EXEC	    = mpirun -n 2

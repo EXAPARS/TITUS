@@ -1,6 +1,6 @@
 ## 
 # This file is part of the TITUS software.
-# https://github.com/exapars/
+# https://github.com/exapars/TITUS
 # Copyright (c) 2015-2016 University of Versailles UVSQ
 #
 # TITUS  is a free software: you can redistribute it and/or modify  
@@ -18,42 +18,58 @@
 
 #====================================================================================
 #
-#   AUTHOR  :   UEMURA Seijilo, FONTENAILLE Clément, PETIT Eric
+#   AUTHOR  :   UEMURA Seijilo, FONTENAILLE Clément, PETIT Eric, DE OLIVEIRA Pablo
 #   FILE    :   README
 #   CONTENT :
 #
 #====================================================================================
 
-#TODO To translate in english
-#TODO Test from fresh vm and rewrite
-#TODO Add contact info: exapars contact list? TITUS sublist on github?
+======================    _  _    ======================    ====              ====       ===================
+======================   (─‿‿─)   ======================    ====              ====     =====================
+         ====                              ====             ====              ====    =====
+         ====                              ====             ====              ====    ====
+         ====             ====             ====             ====              ====     ====    
+         ====             ====             ====             ====              ====       =======    
+         ====             ====             ====             ====              ====            ======    
+         ====             ====             ====             ====              ====                =======    
+         ====             ====             ====             ====              ====                     ====    
+         ====             ====             ====             ====              ====                      ====    
+         ====             ====             ====             =====            =====                     =====
+         ====             ====             ====              ====================     =====================
+         ====             ====             ====                ================       ===================
 
- 
-    Avant propos
-        Cette bibliothèque est conçu pour optimiser l'équilibrage de charges dans un problème parallèles distribué.
-        Il répond à un besoin de performances et a été crée dans le but d'approcher l'exascale.
 
-    Chargement de l'environement de GASPI:
-        Après l'installation du langage de communication GASPI,
-        il faut charger les variables d'environement suivantes ou les ajouter au .bashrc.
-            export PATH=/home/seijilo/INSTALL_GASPI/bin:${PATH}
-            export C_INCLUDE_PATH=/home/seijilo/INSTALL_GASPI/include:${C_INCLUDE_PATH}
-            export LIBRARY_PATH=/home/seijilo/INSTALL_GASPI/lib64:${LIBRARY_PATH}
 
-    dépendances:
-        doxygene
-        gpi2/1.1.1  avec l'option --with-mpi
-        openmpi > 1.4.3
 
-    Création de la librarie :
-        Charger le module openmpi afin de faire de l'interopérabilité MPI - GASPI
-        Recupèrer les sources de DLB_Library
-        A la racine faire :
-            ./install.sh
-            make            (fabrique la librarie, la documentation et compile tous les tests)
-            make lib        (fabrique la librarie)
-            make tests      (fabrique les tests)
-            make doc        (fabrique la documentation)
-            make clean      (efface /obj, /lib, tests/bin/ et tests/obj/)
-            make cleanall   (efface en plus doxygen)
+TITUS is a framework for task-based programming and parallel task scheduling for large HPC applications.
+The main repository for TITUS can be found at https://github.com/exapars/TITUS
 
+REQUIREMENTS :
+	GPI2 1.3 or earlier : available from https://github.com/cc-hpc-itwm/GPI-2
+	Make sure to install using MPI interoperability mode and IB support if available
+	set or export the GASPI_HOME environment variable.
+	
+	A recent Libunwind installation is also required and may be either fetched from your distribution packages or built from sources using 
+		git clone git://git.sv.gnu.org/libunwind.git
+	
+INSTALL :
+	Retrieve TITUS sources from https://github.com/exapars/TITUS
+		git clone https://github.com/exapars/TITUS TITUS
+	Set or export the DLB_HOME environment variable
+		export DLB_HOME TITUS
+	go to the TITUS install directory and source the load_env script
+		cd TITUS
+	make
+		make
+	test
+		mpirun -n4 TITUS/tests/bin/DLB_Bench.bin
+
+
+COMPONENTS :
+	DLB : A Dynamic Load Balancing library implementing a distributed Work-Stealing algorithm using GASPI.
+	DVS : A Dynamic Victim Selector used to manage connectivity, victim selection decision for work-stealing and routing.
+	Logger : A general purpose logger that collects and provides dynamic perfomance metrics for both runtime autotuning and later analysis
+	SegmentMetadata : Higher level (than get & put) PGAS memory management for remote direct memory operations and buffered remote segments.
+
+		
+An example use case can be found in tests/src/DLB_Bench. It is not a minimal working example.
