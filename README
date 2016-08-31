@@ -1,0 +1,59 @@
+## 
+# This file is part of the TITUS software.
+# https://github.com/exapars/
+# Copyright (c) 2015-2016 University of Versailles UVSQ
+#
+# TITUS  is a free software: you can redistribute it and/or modify  
+# it under the terms of the GNU Lesser General Public License as   
+# published by the Free Software Foundation, version 3.
+#
+# TITUS is distributed in the hope that it will be useful, but 
+# WITHOUT ANY WARRANTY; without even the implied warranty of 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+#====================================================================================
+#
+#   AUTHOR  :   UEMURA Seijilo, FONTENAILLE Clément, PETIT Eric
+#   FILE    :   README
+#   CONTENT :
+#
+#====================================================================================
+
+#TODO To translate in english
+#TODO Test from fresh vm and rewrite
+#TODO Add contact info: exapars contact list? TITUS sublist on github?
+
+ 
+    Avant propos
+        Cette bibliothèque est conçu pour optimiser l'équilibrage de charges dans un problème parallèles distribué.
+        Il répond à un besoin de performances et a été crée dans le but d'approcher l'exascale.
+
+    Chargement de l'environement de GASPI:
+        Après l'installation du langage de communication GASPI,
+        il faut charger les variables d'environement suivantes ou les ajouter au .bashrc.
+            export PATH=/home/seijilo/INSTALL_GASPI/bin:${PATH}
+            export C_INCLUDE_PATH=/home/seijilo/INSTALL_GASPI/include:${C_INCLUDE_PATH}
+            export LIBRARY_PATH=/home/seijilo/INSTALL_GASPI/lib64:${LIBRARY_PATH}
+
+    dépendances:
+        doxygene
+        gpi2/1.1.1  avec l'option --with-mpi
+        openmpi > 1.4.3
+
+    Création de la librarie :
+        Charger le module openmpi afin de faire de l'interopérabilité MPI - GASPI
+        Recupèrer les sources de DLB_Library
+        A la racine faire :
+            ./install.sh
+            make            (fabrique la librarie, la documentation et compile tous les tests)
+            make lib        (fabrique la librarie)
+            make tests      (fabrique les tests)
+            make doc        (fabrique la documentation)
+            make clean      (efface /obj, /lib, tests/bin/ et tests/obj/)
+            make cleanall   (efface en plus doxygen)
+

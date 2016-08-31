@@ -1,0 +1,60 @@
+{
+"factors": [
+    {"name": "log_node_count",
+     "type": "integer",
+     "range": {"min": 0, "max": 7}
+    },
+    {"name": "decomposition_factor",
+     "type": "float",
+     "range": {"min": 0.0, "max": 1.0 }
+    },
+    {"name": "work_per_proc",
+     "type": "float",
+     "range": {"min" : 1, "max": 60} 
+    },
+    {"name": "mem_per_proc",
+     "type": "integer",
+     "range": {"min": 4000, "max": 21000000}
+    },
+    {"name": "segment_size_ratio",
+     "type": "float",
+     "range": {"min": 0.1, "max": 5}
+    }
+  ],
+  "modules": {
+    "bootstrap": {
+      "executable": "bootstrap/from-file",
+      "params": {
+        "data_file":"bootstrap_request.dat"
+      }
+    },
+    "source": {
+      "executable": "/home/cfontenaille/DLB_Library/tests/ask/ask_source.R",
+      "params": {
+      }
+    },
+    "model": {
+      "executable": "model/gbm_build",
+      "predictor": "model/gbm_predict",
+      "params": {"ntrees":100, "interactiondepth": 5, "shrinkage":0.1}
+    },
+    "sampler": {
+      "executable": "sampler/hierarchical",
+      "params": {
+        "cp":0.01,
+        "n":20
+      }
+    },
+    "control": {
+      "executable": "control/points",
+      "params": {
+        "n": 200
+      }
+    }
+  },
+  "log": {
+    "logfile": "default.log",
+    "level": "DEBUG"
+  },
+  "output_directory": "output/"
+}
