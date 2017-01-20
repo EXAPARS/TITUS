@@ -26,7 +26,7 @@
 
 
 ====================    _  _    ====================    ====            ====       =================
-====================   (─‿‿─)   ====================    ====            ====     ===================
+====================   (^‿‿^)   ====================    ====            ====     ===================
         ====                            ====            ====            ====    =====               
         ====                            ====            ====            ====    ====                
         ====            ====            ====            ====            ====     ====               
@@ -42,15 +42,16 @@
 
 
 
-TITUS is a framework for task-based programming and parallel task scheduling for large HPC applications.
+TITUS is a framework for parallel task scheduling for large HPC applications. It has been tested up to 8k cores.
 The main repository for TITUS can be found at https://github.com/exapars/TITUS
 
 REQUIREMENTS :
-	GPI2 1.3 or earlier : available from https://github.com/cc-hpc-itwm/GPI-2
-	Make sure to install using MPI interoperability mode and IB support if available
-	set or export the GASPI_HOME environment variable.
+	GPI2 1.3 or earlier : 
+		Available from https://github.com/cc-hpc-itwm/GPI-2
+		Make sure to install using MPI interoperability mode and IB support if available
+		Set or export the GPI_HOME environment variable to the GPI installation directory.
 	
-	A recent Libunwind installation is also required and may be either fetched from your distribution packages or built from sources using 
+	An up-to-date Libunwind installation is also required and may be either fetched from your distribution packages or built from sources using 
 		git clone git://git.sv.gnu.org/libunwind.git
 	
 INSTALL :
@@ -58,19 +59,25 @@ INSTALL :
 		git clone https://github.com/exapars/TITUS TITUS
 	Set or export the DLB_HOME environment variable
 		export DLB_HOME TITUS
-	go to the TITUS install directory and source the load_env script
+	go to the TITUS install directory
 		cd TITUS
 	make
 		make
-	test
-		mpirun -n4 TITUS/tests/bin/DLB_Bench.bin
+	test -- Only with MPI-interoperable GPI install -- Feel free to test on any number of cores
+		cd tests/bin
+		mpirun -n4 ./DLB_Bench.bin
 
 
 COMPONENTS :
 	DLB : A Dynamic Load Balancing library implementing a distributed Work-Stealing algorithm using GASPI.
 	DVS : A Dynamic Victim Selector used to manage connectivity, victim selection decision for work-stealing and routing.
-	Logger : A general purpose logger that collects and provides dynamic perfomance metrics for both runtime autotuning and later analysis
+	Logger : A general purpose logger that collects and provides dynamic perfomance metrics for both runtime autotuning or traces & logs ouptut for post-mortem analysis
 	SegmentMetadata : Higher level (than get & put) PGAS memory management for remote direct memory operations and buffered remote segments.
-
+	DLB_Bench : A synthetic benchmark for DLB.
 		
 An example use case can be found in tests/src/DLB_Bench. It is not a minimal working example.
+
+UPCOMING WORK (no deadline) :
+	- MPI implementation (mainly for comparison purpose)
+	- Intra-node optimization for scaling up to 100k cores
+	- Tasks dependencies for handling a wider variety of problem

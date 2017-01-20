@@ -37,6 +37,7 @@ DVS_Context_impl * DVS_impl::context = nullptr;
 DVS_Context_impl::DVS_Context_impl(DLB_INTERNAL_CONTEXT * dlb_ctx):
 	dlb_ctx(dlb_ctx)
 {
+	for (int i=0 ; i < dlb_ctx->get_nb_ranks() ; i++) dlb_ctx->register_to_rank(i);
 }
 
 static DVS_RANK_TYPE base_victim_selection(DVS_Context_impl *context) {return context->select_target_rank();}

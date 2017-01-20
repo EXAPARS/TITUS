@@ -149,7 +149,7 @@ void DLB_Context_impl::register_to_rank(gaspi_rank_t arg) {
     
     if (registrations_status[arg] == true) return;
 
-    if (gaspi_config_build_infrastructure == GASPI_TOPOLOGY_NONE){
+    if (gaspi_config_build_infrastructure != GASPI_TOPOLOGY_DYNAMIC){
 		gaspi_connect(arg,GASPI_BLOCK);
 		SUCCESS_OR_DIE( gaspi_segment_register( segment_task,   arg, DLB_GASPI_TIMEOUT));
 		SUCCESS_OR_DIE( gaspi_segment_register( segment_result, arg, DLB_GASPI_TIMEOUT));

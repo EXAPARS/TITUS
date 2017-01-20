@@ -45,9 +45,12 @@ else
 endif
 
 # dependencies
+
+# export GASPI_HOME
 GPI_INC=$(GASPI_HOME)/include
 GPI_LIB=$(GASPI_HOME)/lib64
 
+#export DLB_HOME
 DLB_INC=$(DLB_HOME)/include
 DLB_LIB=$(DLB_HOME)/lib
 
@@ -57,11 +60,11 @@ DVS_LIB=$(DVS_HOME)/lib
 
 # DFLAGS does not defines DEBUG as it has not been maintained
 #! TODO : make debug behaviors -DDEBUG dependant and add it here
-DFLAGS 		= $(DFLAGS_OPT) -g -fkeep-inline-functions -lsupc++
+DFLAGS 		= $(DFLAGS_OPT) -g -lsupc++ # -fkeep-inline-functions
 # always include DFLAGS for debug symbols
 CFLAGS		= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS) -I$(DLB_INC) -I$(GPI_INC) -I$(DVS_INC)
-CXXFLAGS	= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS)
-LDFLAGS		= -fPIC -shared -L$(DVS_LIB) -lDVS -L$(GASPI_LIB) -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
+CXXFLAGS	= -fPIC -W -Wall -O2 -Wno-sign-compare $(DFLAGS) -I$(DLB_INC) -I$(GPI_INC) -I$(DVS_INC)
+LDFLAGS		= -fPIC -shared -L$(DVS_LIB) -lDVS -L$(GPI_LIB) -lGPI2-dbg -libverbs -L$(DLB_HOME)/libunwind/lib -lunwind -lpthread $(L_MATH) #$(DFLAGS_OPT)
 
 SRC	:= $(wildcard src/*.cpp)
 OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
@@ -69,8 +72,8 @@ OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
 #================================================================
 #       	test CONFIGURATION
 #================================================================
-TEST_LDFLAGS	= -O2 -L$(DLB_LIB) -lDLB -L$(DVS_LIB) -lDVS -L$(GASPI_LIB) -lGPI2-dbg -libverbs -L$DLB_HOME/libunwind/lib -lunwind -lpthread $(L_MATH) $(DFLAGS_OPT)
-TEST_CFLAGS     = -W -Wall $(DFLAGS)
+TEST_LDFLAGS	= -O2 -L$(DLB_LIB) -lDLB -L$(DVS_LIB) -lDVS -L$(GPI_LIB) -lGPI2-dbg -libverbs -L$(DLB_HOME)/libunwind/lib -lunwind -lpthread $(L_MATH) #$(DFLAGS_OPT)
+TEST_CFLAGS     = $(CFLAGS)
 TEST_CXXFLAGS   = $(CXXFLAGS) -W -Wall $(DFLAGS)
 TEST_EXEC	    = mpirun -n 2
 
