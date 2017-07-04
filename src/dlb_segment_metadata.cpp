@@ -16,7 +16,8 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dlb_segment_metadata.hpp"
+
+#include "TITUS_DLB_segment_metadata.hpp"
 #include <cstring> //memcpy
 #include <utility>
 
@@ -37,30 +38,30 @@ SegmentMetadata * SegmentMetadata::read_to_scratch(gaspi_rank_t target_rank, gas
 
 SegmentMetadata * SegmentMetadata::read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch){
 	if (target_segment_id == (gaspi_segment_id_t)-1)
-		target_segment_id = DLB_impl::get_context()->segment_task;
-	gaspi_segment_id_t scratch_segment_id = DLB_impl::get_context()->segment_scratch;
-	gaspi_queue_id_t queue_scratch_id = DLB_impl::get_context()->queue_scratch;
-	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(SegmentMetadata), queue_scratch_id, DLB_GASPI_TIMEOUT ) );
-	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, DLB_GASPI_TIMEOUT ) );
+		target_segment_id = TITUS_DLB_impl::get_context()->segment_task;
+	gaspi_segment_id_t scratch_segment_id = TITUS_DLB_impl::get_context()->segment_scratch;
+	gaspi_queue_id_t queue_scratch_id = TITUS_DLB_impl::get_context()->queue_scratch;
+	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(SegmentMetadata), queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
+	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
 
-	return (SegmentMetadata*) ADD_PTR(DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
+	return (SegmentMetadata*) ADD_PTR(TITUS_DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
 }
 
-gaspi_atomic_value_t SegmentMetadata::compare_and_swap_status(gaspi_rank_t target, gaspi_segment_id_t target_segment, gaspi_atomic_value_t comp, gaspi_atomic_value_t new_val){
-	DLB_Context_impl * ctx = DLB_impl::get_context();
+gaspi_atomic_value_t SegmentMetadata::compare_and_swap_status(gaspi_rank_t target, gaspi_segment_id_t target_segment, gaspi_atomic_value_t comp, gaspi_atomic_value_t new_val, bool nowait){
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 	if (target >= ctx->get_nb_ranks()){
 		TITUS_DBG << "ERROR RANK " << ctx->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
 			target << " >= " << ctx->get_nb_ranks() << std::endl; //TITUS_DBG.flush();
+		ASSERT(target < ctx->get_nb_ranks());
 	}
-	ASSERT(target < ctx->get_nb_ranks());
 	
 	if (ctx->registrations_status[target] != true){
 		TITUS_DBG << "ERROR RANK " << ctx->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
 			"registrations_status[" << target << "] != true" << std::endl; //TITUS_DBG.flush();
+		ASSERT(ctx->registrations_status[target] == true);
 	}
-	ASSERT(ctx->registrations_status[target] == true);
 
-	gaspi_number_t nb_segs; gaspi_segment_num(&nb_segs);
+	gaspi_number_t nb_segs; SUCCESS_OR_DIE(gaspi_segment_num(&nb_segs));
 	ASSERT(target_segment < nb_segs);
 	
 	
@@ -69,14 +70,31 @@ gaspi_atomic_value_t SegmentMetadata::compare_and_swap_status(gaspi_rank_t targe
 	
 	//TITUS_DBG << "SegmentMetadata::compare_and_swap_status(" <<
 	//	"target=" << target << ", target_segment = " << (uint)target_segment << ", comp=" << comp << ", new_val=" << new_val << ")" << std::endl; //TITUS_DBG.flush();
+	static uint64_t date_next_c_s; //! TODO : thread safety !
+	int us_before_next_atempt = (date_next_c_s - rdtsc()) / (double) (TITUS_PROC_FREQ / 1e6);
+	if (!nowait && us_before_next_atempt > 10){
+		TITUS_DBG << "sleeping for " << us_before_next_atempt << "µs." << std::endl;
+		usleep(us_before_next_atempt);
+	}
 	
-	if (gaspi_atomic_compare_swap(target_segment, segment_status_offset, target, comp, new_val, &old_value, DLB_GASPI_TIMEOUT) != GASPI_SUCCESS){
+	
+    uint64_t f_called = rdtsc();
+	if (gaspi_atomic_compare_swap(target_segment, segment_status_offset, target, comp, new_val, &old_value, TITUS_DLB_GASPI_TIMEOUT) != GASPI_SUCCESS){
 		TITUS_DBG << "error rank " << ctx->get_rank() << " : " <<
 			"SegmentMetadata::compare_and_swap_status : gaspi_atomic_compare_swap failed.\n" <<
-			" > gaspi_atomic_compare_swap(target_segment=" << (uint)target_segment << ", segment_status_offset=" << segment_status_offset << ", target=" << target << ", comp=" << comp << ", new_val=" << new_val << ", &old_value, timeout=" << DLB_GASPI_TIMEOUT << "ms)" << std::endl; //TITUS_DBG.flush();
-		exit (EXIT_FAILURE); 
+			" > gaspi_atomic_compare_swap(target_segment=" << (uint)target_segment << ", segment_status_offset=" << segment_status_offset << ", target=" << target << ", comp=" << comp << ", new_val=" << new_val << ", &old_value, timeout=" << TITUS_DLB_GASPI_TIMEOUT << "ms)" << std::endl; //TITUS_DBG.flush();
+		exit (EXIT_FAILURE);
 	}
-
+    uint64_t f_returned = rdtsc();
+    double time_ms = (double)(f_returned - f_called) / (((double)TITUS_PROC_FREQ) / 1e3);
+    if (time_ms > 10.0){
+		char str[512];
+		sprintf (str, "Warning : %f ms in gaspi_atomic_compare_swap [%s:%i]\n", time_ms, __FILE__, __LINE__);
+		TITUS_DBG << str;
+	}
+	
+	date_next_c_s = f_returned + 4 * (f_returned-f_called); //! TODO : find a portable adaptive approach to avoid network flood.
+	
     return old_value;
 }
 
@@ -89,12 +107,13 @@ std::ostream & operator<<(std::ostream & out, const SegmentMetadata & arg) {arg.
 
 
 // *** CONSTRUCTOR ***
-MetadataTask::MetadataTask(dlb_int shared_task_segment_size, gaspi_segment_id_t segment_id):
+MetadataTask::MetadataTask(TITUS_DLB_int shared_task_segment_size, gaspi_segment_id_t segment_id):
 	SegmentMetadata(shared_task_segment_size, segment_id)
 {
 	reset();
 }
 void MetadataTask::reset() {
+	private_tasks_count = 0;
 	state = NO_TASK;
 	nb_task = 0;
 }
@@ -120,13 +139,13 @@ MetadataTask * MetadataTask::read_to_scratch(gaspi_rank_t target_rank, gaspi_off
 
 MetadataTask * MetadataTask::read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch){
 	if (target_segment_id == (gaspi_segment_id_t)-1)
-		target_segment_id = DLB_impl::get_context()->segment_task;
-	gaspi_segment_id_t scratch_segment_id = DLB_impl::get_context()->segment_scratch;
-	gaspi_queue_id_t queue_scratch_id = DLB_impl::get_context()->queue_scratch;
-	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataTask), queue_scratch_id, DLB_GASPI_TIMEOUT ) );
-	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, DLB_GASPI_TIMEOUT ) );
+		target_segment_id = TITUS_DLB_impl::get_context()->segment_task;
+	gaspi_segment_id_t scratch_segment_id = TITUS_DLB_impl::get_context()->segment_scratch;
+	gaspi_queue_id_t queue_scratch_id = TITUS_DLB_impl::get_context()->queue_scratch;
+	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataTask), queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
+	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
 
-	return (MetadataTask*) ADD_PTR(DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
+	return (MetadataTask*) ADD_PTR(TITUS_DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
 }
 
 std::ostream & operator<<(std::ostream & out, const MetadataTask & arg) {arg.print(out); return out;}
@@ -136,7 +155,7 @@ std::ostream & operator<<(std::ostream & out, const MetadataTask & arg) {arg.pri
 // *********************************************************************
 
 // *** CONSTRUCTOR ***
-MetadataResult::MetadataResult(size_t segment_size,  gaspi_segment_id_t segment_id, dlb_int rank, dlb_int nb_procs, dlb_int nb_usr_results, dlb_int result_size, void *usr_results):
+MetadataResult::MetadataResult(size_t segment_size,  gaspi_segment_id_t segment_id, TITUS_DLB_int rank, TITUS_DLB_int nb_procs, TITUS_DLB_int nb_usr_results, TITUS_DLB_int result_size, void *usr_results):
 	BufferedSegmentMetadata(segment_size, segment_id, sizeof(MetadataResult)),
 	nb_usr_results(nb_usr_results),
 	result_size(result_size),
@@ -152,7 +171,7 @@ std::string MetadataResult::state_str()const{
 	return state_str(state);
 }
 
-void MetadataResult::reset(dlb_int rank, dlb_int nb_procs) {
+void MetadataResult::reset(TITUS_DLB_int rank, TITUS_DLB_int nb_procs) {
 	nb_result = 0;
 //	global_termination_detected = 0;
 	state = SEGMENT_AVAILABLE;
@@ -171,13 +190,13 @@ MetadataResult * MetadataResult::read_to_scratch(gaspi_rank_t target_rank, gaspi
 
 MetadataResult * MetadataResult::read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch){
 	if (target_segment_id == (gaspi_segment_id_t)-1)
-		target_segment_id = DLB_impl::get_context()->segment_task;
-	gaspi_segment_id_t scratch_segment_id = DLB_impl::get_context()->segment_scratch;
-	gaspi_queue_id_t queue_scratch_id = DLB_impl::get_context()->queue_scratch;
-	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataResult), queue_scratch_id, DLB_GASPI_TIMEOUT ) );
-	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, DLB_GASPI_TIMEOUT ) );
+		target_segment_id = TITUS_DLB_impl::get_context()->segment_task;
+	gaspi_segment_id_t scratch_segment_id = TITUS_DLB_impl::get_context()->segment_scratch;
+	gaspi_queue_id_t queue_scratch_id = TITUS_DLB_impl::get_context()->queue_scratch;
+	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataResult), queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
+	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
 
-	return (MetadataResult*) ADD_PTR(DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
+	return (MetadataResult*) ADD_PTR(TITUS_DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
 }
 
 
@@ -195,7 +214,7 @@ std::ostream & operator<<(std::ostream & out, const TerminationDetectionData & a
 // *** CONSTRUCTOR ***
 MetadataTmp::MetadataTmp(size_t size, gaspi_segment_id_t segment_id, size_t result_size) : 
 	SegmentMetadata(size, segment_id),
-	owner_result_rank(DLB_impl::get_context()->get_rank()),
+	owner_result_rank(TITUS_DLB_impl::get_context()->get_rank()),
 	last_result_id(0),
 	nb_result(0),
 	nb_result_max((size - sizeof(MetadataTmp))/result_size -1),
@@ -223,7 +242,8 @@ void MetadataTmp::reset(){
 }
 
 void MetadataTmp::push_tmp_results(){
-	DLB_Context_impl * ctx = DLB_impl::get_context();
+	//~ TITUS_DBG << "in TITUS_DLB_impl::push_tmp_results" << std::endl;
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 	if (nb_result == 0) return;
 	
 	if (owner_result_rank >= ctx->get_nb_ranks()){
@@ -250,7 +270,7 @@ void MetadataTmp::push_tmp_results(){
 	// else : push into result buffer for routing
 	
 	
-	std::pair<gaspi_offset_t,dlb_int> new_buffer_elt_offset;
+	std::pair<gaspi_offset_t,TITUS_DLB_int> new_buffer_elt_offset;
 	
 	MetadataResult * r = ctx->get_metadata_result();
 	// try remote alloc on self, if fail, push results buffer then restart
@@ -269,8 +289,8 @@ void MetadataTmp::push_tmp_results(){
 	//TITUS_DBG << "MetadataTmp::push_tmp_results : pushing results " << *result_buffer_elt << " to result segment as elt " << new_buffer_elt_offset.second << " @offset=" << new_buffer_elt_offset.first << std::endl; //TITUS_DBG.flush();
 	gaspi_notification_id_t notification_id = new_buffer_elt_offset.second;
 
-	//TITUS_DBG << "push_tmp_results : notified : segment id = " << (uint)r->segment_id << ", rank = " << ctx->get_rank() << ", notification_id = " << notification_id << ", value = " << 1 << ", queue = " << (uint)ctx->queue_result << ", timeout = " << DLB_GASPI_TIMEOUT << std::endl;
-	SUCCESS_OR_DIE( gaspi_notify(r->segment_id, ctx->get_rank(), notification_id, 1, ctx->queue_result, DLB_GASPI_TIMEOUT) );
+	//TITUS_DBG << "push_tmp_results : notified : segment id = " << (uint)r->segment_id << ", rank = " << ctx->get_rank() << ", notification_id = " << notification_id << ", value = " << 1 << ", queue = " << (uint)ctx->queue_result << ", timeout = " << TITUS_DLB_GASPI_TIMEOUT << std::endl;
+	SUCCESS_OR_DIE( gaspi_notify(r->segment_id, ctx->get_rank(), notification_id, 1, ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT) );
 	reset();
 }
 
@@ -282,13 +302,13 @@ MetadataTmp * MetadataTmp::read_to_scratch(gaspi_rank_t target_rank, gaspi_offse
 
 MetadataTmp * MetadataTmp::read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch){
 	if (target_segment_id == (gaspi_segment_id_t)-1)
-		target_segment_id = DLB_impl::get_context()->segment_task;
-	gaspi_segment_id_t scratch_segment_id = DLB_impl::get_context()->segment_scratch;
-	gaspi_queue_id_t queue_scratch_id = DLB_impl::get_context()->queue_scratch;
-	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataTmp), queue_scratch_id, DLB_GASPI_TIMEOUT ) );
-	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, DLB_GASPI_TIMEOUT ) );
+		target_segment_id = TITUS_DLB_impl::get_context()->segment_task;
+	gaspi_segment_id_t scratch_segment_id = TITUS_DLB_impl::get_context()->segment_scratch;
+	gaspi_queue_id_t queue_scratch_id = TITUS_DLB_impl::get_context()->queue_scratch;
+	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(MetadataTmp), queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
+	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
 
-	return (MetadataTmp*) ADD_PTR(DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
+	return (MetadataTmp*) ADD_PTR(TITUS_DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
 }
 
 std::ostream & operator<<(std::ostream & out, const MetadataTmp & arg) {arg.print(out); return out;}

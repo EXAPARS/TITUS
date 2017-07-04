@@ -57,8 +57,8 @@ REQUIREMENTS :
 INSTALL :
 	Retrieve TITUS sources from https://github.com/exapars/TITUS
 		git clone https://github.com/exapars/TITUS TITUS
-	Set or export the DLB_HOME environment variable
-		export DLB_HOME TITUS
+	Set or export the TITUS_DLB_HOME environment variable
+		export TITUS_DLB_HOME TITUS
 	go to the TITUS install directory
 		cd TITUS
 	make
@@ -69,15 +69,15 @@ INSTALL :
 
 
 COMPONENTS :
-	DLB : A Dynamic Load Balancing library implementing a distributed Work-Stealing algorithm using GASPI.
+	TITUS_DLB : A Dynamic Load Balancing library implementing a distributed Work-Stealing algorithm using GASPI.
 	DVS : A Dynamic Victim Selector used to manage connectivity, victim selection decision for work-stealing and routing.
 	Logger : A general purpose logger that collects and provides dynamic perfomance metrics for both runtime autotuning or traces & logs ouptut for post-mortem analysis
 	SegmentMetadata : Higher level (than get & put) PGAS memory management for remote direct memory operations and buffered remote segments.
-	DLB_Bench : A synthetic benchmark for DLB.
+	DLB_Bench : A synthetic benchmark for TITUS_DLB.
 		
 An example use case can be found in tests/src/DLB_Bench. It is not a minimal working example.
 
 UPCOMING WORK (no deadline) :
-	- MPI implementation (mainly for comparison purpose)
+	- optimize strong scaling capability
 	- Intra-node optimization for scaling up to 100k cores
 	- Tasks dependencies for handling a wider variety of problem

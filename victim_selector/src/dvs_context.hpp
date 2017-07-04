@@ -16,16 +16,17 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #ifndef __DVS_CONTEXT_H__
 #define __DVS_CONTEXT_H__
 
-#include <dlb_gaspi_tools.hpp>
+#include <TITUS_DLB_gaspi_tools.hpp>
 #include <neighboring_generator.hpp>
 
 // root class : random no connect
 class DVS_Context_impl{
 public :
-	DVS_Context_impl(DLB_INTERNAL_CONTEXT * dlb_ctx);
+	DVS_Context_impl(TITUS_DLB_INTERNAL_CONTEXT * TITUS_DLB_ctx);
 	virtual ~DVS_Context_impl() {}
 	
 	
@@ -40,7 +41,7 @@ public :
 	
 	friend class DVS_impl;
 protected :
-	DLB_INTERNAL_CONTEXT * dlb_ctx;
+	TITUS_DLB_INTERNAL_CONTEXT * TITUS_DLB_ctx;
 // ------------------------------------------------------
 // -------------- GENERIC CONTEXT DATA ------------------
 // ------------------------------------------------------
@@ -49,7 +50,7 @@ protected :
 // root class : random no connect
 class DVS_Context_impl_random : public DVS_Context_impl {
 public :
-	DVS_Context_impl_random(DLB_INTERNAL_CONTEXT * dlb_ctx);
+	DVS_Context_impl_random(TITUS_DLB_INTERNAL_CONTEXT * TITUS_DLB_ctx);
 	virtual ~DVS_Context_impl_random() {}
 	
 	virtual DVS_RANK_TYPE select_target_rank();
@@ -68,7 +69,7 @@ public :
 
 class DVS_Context_impl_small_world : public DVS_Context_impl {
 public :
-	DVS_Context_impl_small_world(DLB_INTERNAL_CONTEXT * dlb_ctx, size_t neighbors_count_ = 0);
+	DVS_Context_impl_small_world(TITUS_DLB_INTERNAL_CONTEXT * TITUS_DLB_ctx, size_t neighbors_count_ = (size_t)-1);
 	virtual ~DVS_Context_impl_small_world() {}
 
 
@@ -85,6 +86,26 @@ private :
 	size_t degree;
 	d1_kleinberg_neighboring_generator neighbors;
 	void init_neighbors();
+};
+
+
+
+//! TODO : implement
+class DVS_Context_impl_weighted_tree : public DVS_Context_impl {
+public :
+	DVS_Context_impl_weighted_tree(TITUS_DLB_INTERNAL_CONTEXT * TITUS_DLB_ctx);
+	virtual ~DVS_Context_impl_weighted_tree() {}
+
+
+	virtual DVS::DVS_MODE get_mode() {return DVS::DVS_MODE_WEIGHTED_TREE;}	
+	virtual select_target_rank_t get_victim_selection_func();
+	
+	virtual DVS_RANK_TYPE select_next_hop_to(DVS_RANK_TYPE dest){ return dest; } //! TODO IMPLEMENT
+	virtual select_next_hop_to_t select_next_hop_func();
+
+	virtual DVS_RANK_TYPE select_target_rank();
+private :
+	//! TODO : implement
 };
 
 #endif //__DVS_CONTEXT_H__

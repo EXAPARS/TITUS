@@ -16,43 +16,46 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __DLB_INTERNAL_H__
-#define __DLB_INTERNAL_H__
+
+#include <TITUS_DLB_gaspi_tools.hpp>
+
+#ifndef __TITUS_DLB_INTERNAL_H__
+#define __TITUS_DLB_INTERNAL_H__
 
 #include <GASPI.h>
-#include <DLB.hpp>
-#include <dlb_gaspi_tools.hpp>
+#include <TITUS_DLB.hpp>
 #include <map>
 #include <neighboring_generator.hpp>
-//#include "dlb_context.hpp"
-//#include "dlb_logger.hpp"
+//#include "TITUS_DLB_context.hpp"
+//#include "TITUS_DLB_logger.hpp"
 
-class DLB_impl
+class TITUS_DLB_impl
 {
 public :
     static void parallel_work(uint64_t timeout_ms = 0);
     
-    static void set_context(DLB_Context_impl * arg);
-    static DLB_Context_impl * get_context();
+    static void set_context(TITUS_DLB_Context_impl * arg);
+    static TITUS_DLB_Context_impl * get_context();
 
     // from WORK_REQUESTING_H
-    static dlb_int  work_requesting(gaspi_rank_t target_rank);
+    static TITUS_DLB_int  work_requesting(gaspi_rank_t target_rank);
 
     // from WORK_STEALING_H
-    static dlb_int  work_stealing(gaspi_rank_t target_rank);
+    static TITUS_DLB_int  work_stealing(gaspi_rank_t target_rank);
 	
-	// a gaspi standard compliant notifications-based barrier implemented using DLB-managed neighboring
+	// a gaspi standard compliant notifications-based barrier implemented using TITUS_DLB-managed neighboring
 	// uses a b-tree based up&down scheme
 	// this collective call is meant to replace gaspi_barrier when gaspi was initialized with build_infrastructure set to false.
 	static gaspi_return_t barrier(gaspi_group_t group, gaspi_timeout_t timeout = GASPI_BLOCK);
 
 	static gaspi_return_t gaspi_proc_init_impl(gaspi_timeout_t timeout = GASPI_BLOCK);
+	static bool get_gaspi_init_complete(){return gaspi_init_complete;}
 
 private :
-    static DLB_Context_impl * context;
+    static TITUS_DLB_Context_impl * context;
     
     // from LOAD_BALANCING_H
-    static dlb_int  load_balancing();
+    static TITUS_DLB_int  load_balancing();
 
     // from RETURN_RESULT_H
     static void return_result();
@@ -60,7 +63,7 @@ private :
     static void return_result_simple();
 
     // from TERMINATION_DETECTION_H
-    static dlb_int  termination_detection();
+    static TITUS_DLB_int  termination_detection();
 
     // from WORK_ON_MY_DEQUEUE_H
     static void write_task_to_remote_segment();
@@ -107,6 +110,8 @@ private :
 	};
 
 
+	static bool gaspi_init_complete;
+	
 	static bool barrier_segment_is_init;
 	static gaspi_segment_id_t segment_barrier;
 	static gaspi_pointer_t ptr_segment_barrier;
@@ -126,4 +131,4 @@ private :
 	
 	friend struct barrier_status;
 };
-#endif //__dlb_intERNAL_H__
+#endif //__TITUS_DLB_intERNAL_H__

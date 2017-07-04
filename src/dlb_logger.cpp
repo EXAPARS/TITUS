@@ -16,15 +16,16 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dlb_logger.hpp"
-#include "dlb_context.hpp"
+
+#include "TITUS_DLB_logger.hpp"
+#include "TITUS_DLB_context.hpp"
 #include <unistd.h>
 // *********************************************************************
-// *********************** DLB_session_info *****************************
+// *********************** TITUS_DLB_session_info *****************************
 // *********************************************************************
-size_t DLB_session_info::session_count = 0;
+size_t TITUS_DLB_session_info::session_count = 0;
 
-DLB_session_info::DLB_session_info():
+TITUS_DLB_session_info::TITUS_DLB_session_info():
     session_start(0),
     session_end(0),
     session_id(session_count ++),
@@ -68,7 +69,7 @@ DLB_session_info::DLB_session_info():
 {
     
 }
-DLB_session_info & DLB_session_info::operator+=(DLB_session_info & arg) {
+TITUS_DLB_session_info & TITUS_DLB_session_info::operator+=(TITUS_DLB_session_info & arg) {
     session_start     = (session_start > arg.session_start) ? arg.session_start:session_start;
     session_end     = (session_start < arg.session_start) ? arg.session_start:session_start;
     
@@ -126,14 +127,14 @@ const char * theft_status_to_string(gaspi_atomic_value_t val){
 		case NO_TASK: return "NO_TASK" ; break;
 		case COPY_IN_PROGRESS: return "COPY_IN_PROGRESS" ; break;
 		default : 
-			if (val < DLB::get_context()->get_nb_ranks())
+			if (val < TITUS_DLB::get_context()->get_nb_ranks())
 				return "SEGMENT_LOCKED";
 			return "UNKNOWN_THEFT_STATUS ???";
 	}
 }
 void theft_info::print(std::ostream & out,bool one_line_print)const {
 	char * theft_status_str = nullptr;
-	if (theft_status < DLB::get_context()->get_nb_ranks()){
+	if (theft_status < TITUS_DLB::get_context()->get_nb_ranks()){
 		theft_status_str = new char[64];
 		sprintf(theft_status_str, "SEGMENT_LOCKED_BY_RANK_%lu", theft_status); 
 	}
@@ -161,7 +162,7 @@ void theft_info::print(std::ostream & out,bool one_line_print)const {
     }
 }
     
-void DLB_session_info::print(std::ostream & out)const {
+void TITUS_DLB_session_info::print(std::ostream & out)const {
     // SESSION
     out << "session_id : " << session_id << std::endl;
     
@@ -202,10 +203,10 @@ void DLB_session_info::print(std::ostream & out)const {
 
 
 // *********************************************************************
-// *********************** DLB_Logger_impl *****************************
+// *********************** TITUS_DLB_Logger_impl *****************************
 // *********************************************************************
 
-DLB_Logger_impl::DLB_Logger_impl(DLB_Context_impl * arg, bool log_all, size_t local_buffer_size_in_bytes,bool use_rdtsc,bool autodump):
+TITUS_DLB_Logger_impl::TITUS_DLB_Logger_impl(TITUS_DLB_Context_impl * arg, bool log_all, size_t local_buffer_size_in_bytes,bool use_rdtsc,bool autodump):
     context(arg), current_session(nullptr), log_all_thefts(log_all), buffer(local_buffer_size_in_bytes / sizeof(theft_info))
 {
     if (use_rdtsc) now = &now_rdtsc;
@@ -213,11 +214,11 @@ DLB_Logger_impl::DLB_Logger_impl(DLB_Context_impl * arg, bool log_all, size_t lo
     set_autodump(autodump);
 }
 
-void DLB_Logger_impl::set_autodump(bool val, std::ostream & output)
+void TITUS_DLB_Logger_impl::set_autodump(bool val, std::ostream & output)
 {
     buffer.set_autodump(val,output);
 }
-void DLB_Logger_impl::set_autodump(bool val, const char *logdir){
+void TITUS_DLB_Logger_impl::set_autodump(bool val, const char *logdir){
 	if (!val){
 		set_autodump(false);
 	}
@@ -227,24 +228,24 @@ void DLB_Logger_impl::set_autodump(bool val, const char *logdir){
 	else 
 		theft_dump_filename << logdir;
 
-	theft_dump_filename << "theft_dump_" << context->get_id() << "_rank" << context->get_rank() << ".log"; //! TODO : handle cases where communication layer cannot yield a proper rank id (random hash ? core_id ? pid ?thread id ?)
+	theft_dump_filename << "theft_dump_" << context->get_id() << "_rank" << context->get_rank() << ".log"; //! TODO ajouter le numero de context, ajouter le nom de la machine ?
 	std::ofstream theft_dump_out(theft_dump_filename.str().c_str());
 	set_autodump(val,theft_dump_out);
 }
 
 // *********************************************************************
-// ******************* DLB_Logger_impl::signal_... *********************
+// ******************* TITUS_DLB_Logger_impl::signal_... *********************
 // *********************************************************************
 
 // INIT AND WORK SPAWNING
-// debut de session de travail (DLB_work)
-void DLB_Logger_impl::signal_start_DLB_session() {
-    sessions.push_front(new DLB_session_info() );
+// debut de session de travail (TITUS_DLB_work)
+void TITUS_DLB_Logger_impl::signal_start_TITUS_DLB_session() {
+    sessions.push_front(new TITUS_DLB_session_info() );
     current_session = sessions.front();
     current_session->session_start = now();
     
 }
-void DLB_Logger_impl::signal_end_DLB_session() {
+void TITUS_DLB_Logger_impl::signal_end_TITUS_DLB_session() {
     current_session->session_end = now();
     current_session->session_time = current_session->session_end - current_session->session_start;
     agregated_sessions += *current_session;
@@ -252,46 +253,47 @@ void DLB_Logger_impl::signal_end_DLB_session() {
 
 // ajout de tâches
 // nb task
-void DLB_Logger_impl::signal_tasks_spawned(int nb_tasks) { // default value stands for self
+void TITUS_DLB_Logger_impl::signal_tasks_spawned(int nb_tasks) { // default value stands for self
     current_session->spawned_tasks_count += nb_tasks;
 }
 
 // WORKER
 
 // début de travail
-void DLB_Logger_impl::signal_start_work() {
+void TITUS_DLB_Logger_impl::signal_start_work() {
     current_session->last_work_start = now();
 }
 
 // fin de travail
-void DLB_Logger_impl::signal_end_work() {
+void TITUS_DLB_Logger_impl::signal_end_work() {
     current_session->last_work_end = now();
     current_session->time_spent_working += current_session->last_work_end - current_session->last_work_start;
 }
 
 // début de tache
-void DLB_Logger_impl::signal_start_task() {
+void TITUS_DLB_Logger_impl::signal_start_task() {
     current_session->last_task_start = now();
+    if (current_session->completed_tasks_count == 0) TITUS_DBG << "Computing First Task !" << std::endl;
 }
 
 // fin de tache
-void DLB_Logger_impl::signal_end_task() {
+void TITUS_DLB_Logger_impl::signal_end_task() {
     current_session->last_task_end = now();
     current_session->time_spent_solving_tasks += current_session->last_task_end - current_session->last_task_start;
-    current_session->completed_tasks_count ++;
+	current_session->completed_tasks_count ++;
 }
 
 // propriétaire de tâche
 //signal_task_owner(); // ??
 
 // début récupération des taches
-void DLB_Logger_impl::signal_start_get_from_segment() { // rename ?
+void TITUS_DLB_Logger_impl::signal_start_get_from_segment() { // rename ?
     current_session->last_move_from_segment_start = now();
 }
 
 // fin récupération des taches
 // nb taches récupérées
-void DLB_Logger_impl::signal_end_get_from_segment(int nb_tasks) { // rename ?
+void TITUS_DLB_Logger_impl::signal_end_get_from_segment(int nb_tasks) { // rename ?
     current_session->last_move_from_segment_end = now();
     current_session->time_spent_moving_from_segment += current_session->last_move_from_segment_end - current_session->last_move_from_segment_start;
     current_session->tasks_moved_from_segment_count += nb_tasks;
@@ -300,13 +302,13 @@ void DLB_Logger_impl::signal_end_get_from_segment(int nb_tasks) { // rename ?
 // VICTIM
 
 // début de réapprovisionnement de segment
-void DLB_Logger_impl::signal_start_put_on_segment() {
+void TITUS_DLB_Logger_impl::signal_start_put_on_segment() {
     current_session->last_move_from_dequeue_start = now();
 }
 
 // fin de réapprovisionnement de segment
 // nb taches provisionnées
-void DLB_Logger_impl::signal_end_put_on_segment(int nb_tasks) {
+void TITUS_DLB_Logger_impl::signal_end_put_on_segment(int nb_tasks) {
     current_session->tasks_moved_from_dequeue_count += nb_tasks;
     current_session->last_move_from_dequeue_end = now();
     current_session->time_spent_moving_from_dequeue += current_session->last_move_from_dequeue_end - current_session->last_move_from_dequeue_start;
@@ -315,7 +317,7 @@ void DLB_Logger_impl::signal_end_put_on_segment(int nb_tasks) {
 // THIEF
 
 // début du vol
-void DLB_Logger_impl::signal_start_theft(gaspi_rank_t target_rank) {
+void TITUS_DLB_Logger_impl::signal_start_theft(gaspi_rank_t target_rank) {
     //std::cout << "rank " << context->get_rank() << " entered theft" << std::endl;
     static bool first_theft = true;
     if (first_theft == true){
@@ -332,7 +334,7 @@ void DLB_Logger_impl::signal_start_theft(gaspi_rank_t target_rank) {
 // etat de la cible du vol
 // cible vol
 // nb tache volées
-void DLB_Logger_impl::signal_end_theft(dlb_int theft_status, size_t nb_task_theft, dlb_int first_task_id, gaspi_rank_t target_rank, gaspi_rank_t owner) {
+void TITUS_DLB_Logger_impl::signal_end_theft(TITUS_DLB_int theft_status, size_t nb_task_theft, TITUS_DLB_int first_task_id, gaspi_rank_t target_rank, gaspi_rank_t owner) {
     static bool first_theft = 1;
     if (first_theft && theft_status == TASK_AVAILABLE) {
         //std::cout << "rank " << context->get_rank() << " first successful theft : target = " << target_rank << ", nb_task_theft = " << nb_task_theft << std::endl;
@@ -364,54 +366,54 @@ void DLB_Logger_impl::signal_end_theft(dlb_int theft_status, size_t nb_task_thef
 }
 
 // RETURN RESULTS
-void DLB_Logger_impl::signal_start_return_results() {
+void TITUS_DLB_Logger_impl::signal_start_return_results() {
     current_session->return_results_start = now();    
 }
-void DLB_Logger_impl::signal_end_return_results() {
+void TITUS_DLB_Logger_impl::signal_end_return_results() {
     uint64_t _now = now();
     current_session->time_spent_returning_results += _now - current_session->return_results_start;
     current_session->return_results_start = _now;
 }
 
 
-void DLB_Logger_impl::signal_results_pushed(size_t result_count){
+void TITUS_DLB_Logger_impl::signal_results_pushed(size_t result_count){
 	current_session->results_pushed_count += result_count;
 }
 
 // TERMINATION DETECTION
 // push all results (self + sons) ok
-void DLB_Logger_impl::signal_subtree_termination_detected() {
+void TITUS_DLB_Logger_impl::signal_subtree_termination_detected() {
     TITUS_DBG << "signal_subtree_termination_detected" << std::endl;
     current_session->subtree_termination_detect_date = now();
 }
 // fin détéctée (entrée barrier)
-void DLB_Logger_impl::signal_end_notification_received() {
+void TITUS_DLB_Logger_impl::signal_end_notification_received() {
     TITUS_DBG << "signal_end_notification_received" << std::endl;
     current_session->session_termination_detect_date = now();
 }
 
-void DLB_Logger_impl::signal_start_problem_init() {
+void TITUS_DLB_Logger_impl::signal_start_problem_init() {
     current_session->last_init_problem_start = now();    
 }
-void DLB_Logger_impl::signal_end_problem_init() {
+void TITUS_DLB_Logger_impl::signal_end_problem_init() {
     uint64_t _now = now();
     current_session->init_problem_time += _now - current_session->last_init_problem_start;
     current_session->last_init_problem_start = _now;
 }
 
 
-void DLB_Logger_impl::signal_start_segment_init() {
+void TITUS_DLB_Logger_impl::signal_start_segment_init() {
     current_session->last_init_segment_start = now();    
 }
-void DLB_Logger_impl::signal_end_segment_init() {
+void TITUS_DLB_Logger_impl::signal_end_segment_init() {
     uint64_t _now = now();
     current_session->init_segment_time += _now - current_session->last_init_segment_start;
     current_session->last_init_segment_start = _now;
 }
-void DLB_Logger_impl::signal_start_parallel_work_session() {
+void TITUS_DLB_Logger_impl::signal_start_parallel_work_session() {
     current_session->last_parallel_work_session_start = now();    
 }
-void DLB_Logger_impl::signal_end_parallel_work_session() {
+void TITUS_DLB_Logger_impl::signal_end_parallel_work_session() {
     uint64_t _now = now();
     current_session->parallel_work_session_time += _now - current_session->last_parallel_work_session_start;
     current_session->last_parallel_work_session_start = _now;

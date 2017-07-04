@@ -22,13 +22,13 @@
 #include <sys/time.h>
 #include <GASPI.h>
 #include <cstdint>
-#include <DLB.hpp>
+#include <TITUS_DLB.hpp>
 #include <cassert>
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_logger.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_logger.hpp"
 
 
-pthread_t dlb_main_thread_id;
+pthread_t TITUS_DLB_main_thread_id;
 
 void TITUS_gaspi_logger::add_proc_rank_str(std::ostream & out){
 
@@ -40,7 +40,7 @@ void TITUS_gaspi_logger::add_proc_rank_str(std::ostream & out){
 		rank = gaspi_rank;
 	}
 	
-//! TODO : figure out a way to handle printing mpi rank if available without forcing mpi inclusion in TITUS, move this feature in DLB or DLB_Context or comm layer management
+//! TODO : figure out a way to handle printing mpi rank if available without forcing mpi inclusion in TITUS, move this feature in TITUS_DLB or TITUS_DLB_Context or comm layer management
 //~ #ifdef MPI // mpi interoperability mode
 	//~ else if {
 		//~ int mpi_is_init; MPI_Initialized(&mpi_is_init);
@@ -121,10 +121,10 @@ TITUS_gaspi_logger * get_TITUS_DBG(){
 }
 #endif //TITUS_DBG_WRAPPED
 
-dlb_sig_handler::dlb_sig_handler(){
+TITUS_DLB_sig_handler::TITUS_DLB_sig_handler(){
 	_is_init = true;
-	dlb_main_thread_id = pthread_self();
-	//std::cout << "found main tid = " << dlb_main_thread_id << std::endl;
+	TITUS_DLB_main_thread_id = pthread_self();
+	//std::cout << "found main tid = " << TITUS_DLB_main_thread_id << std::endl;
 	//signal(SIGKILL,print_stacktrace_and_quit); // cannot be caught
 	signal(SIGABRT,print_stacktrace_and_quit);
 	signal(SIGTERM,print_stacktrace_and_quit);
@@ -133,13 +133,13 @@ dlb_sig_handler::dlb_sig_handler(){
 	signal(SIGINT,print_stacktrace_and_quit);
 	signal(SIGUSR1,print_stacktrace_and_quit);
 	signal(SIGUSR2,print_stacktrace_and_quit);
-	//std::cout << "dlb_sig_handler initialized !" << std::endl;
+	//std::cout << "TITUS_DLB_sig_handler initialized !" << std::endl;
 }
 
 #define UNW_LOCAL_ONLY
 #include "libunwind-x86_64.h"
 // backtrace with libunwind
-//void print_stacktrace (unw_addr_space_t dlb_unw_target_thread_addr_space,  unw_context_t * p_dlb_unw_target_thread_context) {
+//void print_stacktrace (unw_addr_space_t TITUS_DLB_unw_target_thread_addr_space,  unw_context_t * p_TITUS_DLB_unw_target_thread_context) {
 void print_stacktrace () {
 
 	unw_cursor_t cursor; 
@@ -152,7 +152,7 @@ void print_stacktrace () {
 	unw_context_t uc;
 	unw_getcontext(&uc);
 	unw_init_local(&cursor, &uc);
-	//int unw_init_remote(&cursor , dlb_unw_target_thread_addr_space, p_dlb_unw_target_thread_context);
+	//int unw_init_remote(&cursor , TITUS_DLB_unw_target_thread_addr_space, p_TITUS_DLB_unw_target_thread_context);
 
 	gaspi_rank_t rank; gaspi_proc_rank(&rank);
 	int ignored_steps = 0;
@@ -180,19 +180,19 @@ bool gaspi_is_init(){ // non-standard (from GASPI_Ext.h)
 }
 
 void print_stacktrace_and_quit(int sig){
-	if (dlb_main_thread_id == 0){
-		TITUS_DBG << "WARNING : dlb_main_thread_id was not set" << std::endl;
+	if (TITUS_DLB_main_thread_id == 0){
+		TITUS_DBG << "WARNING : TITUS_DLB_main_thread_id was not set" << std::endl;
 	}
 	else {
-		if (pthread_self() != dlb_main_thread_id){
-			TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in thread " << pthread_self() << ", killing main thread (id = " << dlb_main_thread_id << ")" << std::endl;
-			pthread_kill(dlb_main_thread_id, sig);
+		if (pthread_self() != TITUS_DLB_main_thread_id){
+			TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in thread " << pthread_self() << ", killing main thread (id = " << TITUS_DLB_main_thread_id << ")" << std::endl;
+			pthread_kill(TITUS_DLB_main_thread_id, sig);
 			usleep(60000000); // 1min
 			exit(sig);
 		}
 	TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in main thread " << pthread_self() << std::endl;
 	}
-	//print_stacktrace(dlb_sig_handler::dlb_unw_main_thread_addr_space, & dlb_sig_handler::dlb_unw_main_thread_context);
+	//print_stacktrace(TITUS_DLB_sig_handler::TITUS_DLB_unw_main_thread_addr_space, & TITUS_DLB_sig_handler::TITUS_DLB_unw_main_thread_context);
 	print_stacktrace();
 	
 	gaspi_rank_t rank = (gaspi_rank_t)-1;
@@ -200,11 +200,11 @@ void print_stacktrace_and_quit(int sig){
 	std::stringstream outname("");
 	outname << "cleanup_logs_" << std::setfill('0') << std::setw(4) << ((rank == (gaspi_rank_t)-1)?(gaspi_rank_t)rdtsc()&0xFFFF : rank) << ".out";
 	std::ostream * out = new std::ofstream(outname.str().c_str());
-	DLB::get_context()->get_logger()->print_all_sessions(*out);
+	TITUS_DLB::get_context()->get_logger()->print_all_sessions(*out);
 
-	DLB_Context * dlb_ctx = DLB::get_context();
-	dlb_ctx->get_logger()->m_impl->signal_end_parallel_work_session();
-	if (dlb_ctx != nullptr)  TITUS_DBG << *dlb_ctx;
+	TITUS_DLB_Context * TITUS_DLB_ctx = TITUS_DLB::get_context();
+	TITUS_DLB_ctx->get_logger()->m_impl->signal_end_parallel_work_session();
+	if (TITUS_DLB_ctx != nullptr)  TITUS_DBG << *TITUS_DLB_ctx;
 	//TITUS_DBG << std::endl;
 	TITUS_DBG.flush();
 	exit(sig);
@@ -259,7 +259,7 @@ inline void wait_for_queue_entries (gaspi_queue_id_t* queue, unsigned long wante
 	if (! (queue_size + wanted_entries <= queue_size_max))
 	{
 		*queue = (*queue + 1) % queue_num;
-		SUCCESS_OR_DIE (gaspi_wait (*queue, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE (gaspi_wait (*queue, TITUS_DLB_GASPI_TIMEOUT));
 	}
 }
 
@@ -274,7 +274,7 @@ void wait_for_flush_queues ()
 	gaspi_queue_id_t queue = 0;
 	while( queue < queue_num )
 	{
-		SUCCESS_OR_DIE (gaspi_wait (queue, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE (gaspi_wait (queue, TITUS_DLB_GASPI_TIMEOUT));
 		++queue;
 	}
 }
@@ -282,7 +282,7 @@ void wait_for_flush_queues ()
 void wait_or_die( gaspi_segment_id_t segment_id, gaspi_notification_id_t notification_id, gaspi_notification_t expected	)
 {
 	gaspi_notification_id_t id;
-	SUCCESS_OR_DIE(gaspi_notify_waitsome (segment_id, notification_id, 1, &id, DLB_GASPI_TIMEOUT));
+	SUCCESS_OR_DIE(gaspi_notify_waitsome (segment_id, notification_id, 1, &id, TITUS_DLB_GASPI_TIMEOUT));
 	ASSERT (id == notification_id);
 
 	gaspi_notification_t value;

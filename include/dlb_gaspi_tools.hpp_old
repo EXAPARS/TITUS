@@ -39,8 +39,8 @@
 #define TITUS_PROC_FREQ          2.4e9
 #endif
 
-#define DLB_GASPI_TIMEOUT GASPI_BLOCK
-//#define DLB_GASPI_TIMEOUT GASPI_BLOCK
+#define TITUS_DLB_GASPI_TIMEOUT GASPI_BLOCK
+//#define TITUS_DLB_GASPI_TIMEOUT GASPI_BLOCK
 
 #if GASPI_MAJOR_VERSION==1 && GASPI_MINOR_VERSION<3
 #define GASPI_TOPOLOGY_NONE 0
@@ -150,17 +150,17 @@ extern TITUS_gaspi_logger_simplistic * m_TITUS_DBG;
 #define UNW_LOCAL_ONLY
 #include "libunwind-x86_64.h"
 // backtrace with libunwind
-extern void print_stacktrace (unw_addr_space_t * p_dlb_unw_target_thread_addr_space,  unw_context_t * p_dlb_unw_target_thread_context);
+extern void print_stacktrace (unw_addr_space_t * p_TITUS_DLB_unw_target_thread_addr_space,  unw_context_t * p_TITUS_DLB_unw_target_thread_context);
 
 extern void print_stacktrace_and_quit(int sig);
 
 
-class dlb_sig_handler{
+class TITUS_DLB_sig_handler{
 public:
-	//static unw_addr_space_t dlb_unw_main_thread_addr_space;	
-	//static unw_context_t dlb_unw_main_thread_context;	
-	//dlb_sig_handler * instance;
-	dlb_sig_handler();
+	//static unw_addr_space_t TITUS_DLB_unw_main_thread_addr_space;	
+	//static unw_context_t TITUS_DLB_unw_main_thread_context;	
+	//TITUS_DLB_sig_handler * instance;
+	TITUS_DLB_sig_handler();
 	bool is_init() { return _is_init; }
 private :
 	bool _is_init;

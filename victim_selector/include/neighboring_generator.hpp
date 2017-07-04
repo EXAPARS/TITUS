@@ -16,6 +16,7 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #ifndef __NEIGHBORING_GENERATOR_H
 #define __NEIGHBORING_GENERATOR_H
 
@@ -59,7 +60,7 @@ class d_reg_neighboring_generator{
 	void add_random_neighbors();
 
 	bool are_neighbors(DVS_RANK_TYPE rank0, DVS_RANK_TYPE rank1);
-	DVS_RANK_TYPE get_neighbor(DVS_RANK_TYPE rank,size_t index){
+	DVS_RANK_TYPE get_neighbor(DVS_RANK_TYPE rank, size_t index){
 		assert(rank < nb_rank);
 		assert(index < degree);
 		return neighbors[rank * degree + index];
@@ -129,7 +130,7 @@ public :
 	d1_kleinberg_neighboring_generator(size_t nb_rank, size_t degree, size_t local_reach = 1);
 	
 	size_t get_neighbors_count(DVS_RANK_TYPE rank)const;
-	size_t are_neighbors(DVS_RANK_TYPE a,DVS_RANK_TYPE b)const;
+	bool are_neighbors(DVS_RANK_TYPE a,DVS_RANK_TYPE b)const;
 	
 	std::set<DVS_RANK_TYPE>::iterator begin_of(DVS_RANK_TYPE rank){ return neighbors[rank].begin(); }
 	std::set<DVS_RANK_TYPE>::iterator end_of(DVS_RANK_TYPE rank){ return neighbors[rank].end(); };

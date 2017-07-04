@@ -16,6 +16,7 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,12 +24,12 @@
 #include <cstdint>
 #include <assert.h>
 
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
-#include "dlb_logger.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
+#include "TITUS_DLB_logger.hpp"
 
-dlb_int DLB_impl::termination_detection()
+TITUS_DLB_int TITUS_DLB_impl::termination_detection()
 {
 	// print on local termination (= first call)
     static bool local_termination_reached = false;
@@ -37,7 +38,7 @@ dlb_int DLB_impl::termination_detection()
 		TITUS_DBG << "local_termination_reached" << std::endl;
 	}
     
-    //DEBUG_PRINT("=================DLB::termination_detection================\n");
+    //DEBUG_PRINT("=================TITUS_DLB::termination_detection================\n");
     gaspi_rank_t parent, left_child, right_child;
     MetadataResult *r = context->get_metadata_result();
     int offset_termination = DIFF_PTR(&(r->termination_status.global_termination_detected) , r); // the offset of global global_termination_detected detection value.
@@ -67,9 +68,9 @@ dlb_int DLB_impl::termination_detection()
         context->logger.signal_subtree_termination_detected();
         subtree_termintion_reached = true;
         gaspi_atomic_value_t value_old;
-    	//~ TITUS_DBG << "SUCCESS_OR_DIE( gaspi_atomic_fetch_add ("<<context->segment_result<<", "<<offset_child<<", "<<parent<<", "<<(gaspi_atomic_value_t)1<<", "<<&value_old<<", "<<DLB_GASPI_TIMEOUT<<"));"<<std::endl; //TITUS_DBG.flush();
+    	//~ TITUS_DBG << "SUCCESS_OR_DIE( gaspi_atomic_fetch_add ("<<context->segment_result<<", "<<offset_child<<", "<<parent<<", "<<(gaspi_atomic_value_t)1<<", "<<&value_old<<", "<<TITUS_DLB_GASPI_TIMEOUT<<"));"<<std::endl; //TITUS_DBG.flush();
     	//~ gaspi_printf(msg.str().c_str());
-    	SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_child, parent, (gaspi_atomic_value_t)1, &value_old, DLB_GASPI_TIMEOUT));
+    	SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_child, parent, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
         return FAILED;
     }
 
@@ -83,12 +84,12 @@ dlb_int DLB_impl::termination_detection()
         context->logger.signal_end_notification_received();
         if(left_child>0){
 			gaspi_atomic_value_t value_old;
-    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, left_child, (gaspi_atomic_value_t)1, &value_old, DLB_GASPI_TIMEOUT));
+    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, left_child, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
 			ASSERT(value_old == 0);
         }
         if(right_child>0){
 			gaspi_atomic_value_t value_old;
-    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, right_child, (gaspi_atomic_value_t)1, &value_old, DLB_GASPI_TIMEOUT));
+    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, right_child, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
 			ASSERT(value_old == 0);
         }
         local_termination_reached = false;
@@ -101,12 +102,12 @@ dlb_int DLB_impl::termination_detection()
         subtree_termintion_reached=false;  //reset
         if(left_child>0){
 			gaspi_atomic_value_t value_old;
-    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, left_child, (gaspi_atomic_value_t)1, &value_old, DLB_GASPI_TIMEOUT));
+    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, left_child, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
 			ASSERT(value_old == 0);
         }
         if(right_child>0){
 			gaspi_atomic_value_t value_old;
-    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, right_child, (gaspi_atomic_value_t)1, &value_old, DLB_GASPI_TIMEOUT));
+    		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, right_child, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
 			ASSERT(value_old == 0);
         }
         local_termination_reached = false;

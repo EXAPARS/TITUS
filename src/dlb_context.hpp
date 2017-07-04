@@ -16,16 +16,17 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __DLB_CONTEXT_HPP__
-#define __DLB_CONTEXT_HPP__
+
+#ifndef __TITUS_DLB_CONTEXT_HPP__
+#define __TITUS_DLB_CONTEXT_HPP__
 
 #include <cstdint>
 #include <GASPI.h>
-#include <dlb_gaspi_tools.hpp>
-#include <DLB.hpp>
-#include "dlb_logger.hpp"
-#include "dlb_internal.hpp"
-#include "dlb_segment_metadata.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include <TITUS_DLB.hpp>
+#include "TITUS_DLB_logger.hpp"
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_segment_metadata.hpp"
 
 #ifdef DEBUG
 #define DEBUG_PRINT(...) do{ printf( __VA_ARGS__ ); } while( false )
@@ -33,10 +34,10 @@
 #define DEBUG_PRINT(...) do{ } while ( false )
 #endif
 
-#define FAILED     (0) //! TODO : public enum in DLB ?
-#define SUCCESS    (1)
-#define FINISHED   (2)
-#define THIEF      (3)
+#define FAILED              (0) //! TODO : public enum in TITUS_DLB ?
+#define SUCCESS             (1)
+#define FINISHED            (2)
+#define THIEF        (3)
 #define WORKER     (4)
 
 // Special values for segment lock status variables
@@ -58,9 +59,9 @@
 #define NB_TASK_MIN         (2) // minimum local tasks required for sharing work
 
 #define MAX_BUFFER_ELTS 						(60000) // sets the limit to the maximum element id in a buffered segment and thus the number of notifications id it reserves.
-#define NB_BUFFERED_SEGMENTS 					(1)   // number of buffered segments in DLB
+#define NB_BUFFERED_SEGMENTS 					(1)   // number of buffered segments in TITUS_DLB
 #define MIN_BUFFERISED_SEGMENT_NOTIFICATION_ID 	(0)
-#define MAX_BUFFERISED_SEGMENT_NOTIFICATION_ID 	(MIN_BUFFERISED_SEGMENT_NOTIFICATION_ID + MAX_BUFFER_ELTS * DLB_Context::get_nb_contexts() * NB_BUFFERED_SEGMENTS - 1)
+#define MAX_BUFFERISED_SEGMENT_NOTIFICATION_ID 	(MIN_BUFFERISED_SEGMENT_NOTIFICATION_ID + MAX_BUFFER_ELTS * TITUS_DLB_Context::get_nb_contexts() * NB_BUFFERED_SEGMENTS - 1)
 
 #define NOTIFICATION_ID_PER_BARRIER_PER_GROUP	(3)
 #define MIN_BARRIER_NOTIFICATION_ID				(MAX_BUFFERISED_SEGMENT_NOTIFICATION_ID + 1)
@@ -71,22 +72,24 @@ struct Dequeue;
 //--------------------------------------------------------------
 //Define Gaspi structure
 //--------------------------------------------------------------
-class DLB_Context_impl
+class TITUS_DLB_Context_impl
 {
 public :
-    DLB_Context_impl(); //default : from default config file (if env var is set) or default config
-    DLB_Context_impl(int shared_task_segment_size, int algorithm);
-    DLB_Context_impl(const char * config_filename); //from config file
-    DLB_Context_impl(const DLB_Context_impl &arg); // clone context
-    ~DLB_Context_impl();
+    TITUS_DLB_Context_impl(); //default : from default config file (if env var is set) or default config
+    TITUS_DLB_Context_impl(int shared_task_segment_size, int algorithm);
+    TITUS_DLB_Context_impl(const char * config_filename); //from config file
+    TITUS_DLB_Context_impl(const TITUS_DLB_Context_impl &arg); // clone context
+    ~TITUS_DLB_Context_impl();
     
-    void set_problem(void *problem, size_t task_size, size_t nb_task, void *result, size_t result_size, void (*ptr_task_function)(void*, void*, void*), void * params);    
-//    void set_shared_task_segment_size(size_t arg); //! TODO : what are the benefits, performances and limitations of resizing segments ? same question applies for the other segments.
+    void set_problem(void *problem, int task_size, int nb_task, void *result, int result_size, void (*ptr_task_function)(void*, void*, void*), void * params);    
+//    void set_shared_task_segment_size(size_t arg);
 //    size_t get_shared_task_segment_size();
+//    void set_algorithm(TITUS_DLB::Algorithm arg);
+//    TITUS_DLB::Algorithm get_algorithm();
 	
-    DLB_Logger_impl * get_logger() {return &logger;}
+    TITUS_DLB_Logger_impl * get_logger() {return &logger;}
     DVS_Context * get_DVS_context() {return DVS_context;}
-    void set_DVS_context(DVS_Context * arg) {DVS_context = arg; if (DLB_impl::get_context() == this)DVS::set_context(arg);}
+    void set_DVS_context(DVS_Context * arg) {DVS_context = arg; if (TITUS_DLB_impl::get_context() == this)DVS::set_context(arg);}
     
 	gaspi_rank_t get_rank()const { gaspi_rank_t r; SUCCESS_OR_DIE( gaspi_proc_rank(&r) ) ; return r;}
 	gaspi_rank_t get_nb_ranks()const { gaspi_rank_t r; SUCCESS_OR_DIE( gaspi_proc_num(&r) ) ; return r; }
@@ -113,35 +116,35 @@ public :
     const MetadataTmp             *get_metadata_tmp()    const { return ((const MetadataTmp *)ptr_segment_tmp);       }
 
 private :
-    void dlb_init_segment(gaspi_segment_id_t segment_id, void ** local_mem_ptr, gaspi_size_t segment_size, bool use_simple_alloc);
-    void dlb_init_context();
+    void TITUS_DLB_init_segment(gaspi_segment_id_t segment_id, void ** local_mem_ptr, gaspi_size_t segment_size, bool use_simple_alloc);
+    void TITUS_DLB_init_context();
     
     void push_results_buffer();
-    void submit_results(void * start, size_t nb_results, dlb_int start_id);
+    void submit_results(void * start, size_t nb_results, TITUS_DLB_int start_id);
     void submit_results(BufferElt * arg);
     void reset(); // resets all states and forgets about any task
     
     bool * registrations_status; //! TODO : move to communication layer manager
-    void open_segment_to_thieves(gaspi_segment_id_t arg);
+    void open_segment_to_thieves(gaspi_segment_id_t arg, bool force_connect = false);
     void print_registration_status(std::ostream & out);
     bool check_status();
     
     
 // ------------------------------------------------------
-// ---------------- DLB CONTEXT DATA --------------------
+// ---------------- TITUS_DLB CONTEXT DATA --------------------
 // ------------------------------------------------------
     size_t id;
     static size_t context_count;
     
-    bool gaspi_config_build_infrastructure;
+    gaspi_topology_t gaspi_config_build_infrastructure;
     
-    DLB_Logger_impl logger;
+    TITUS_DLB_Logger_impl logger;
     DVS_Context * DVS_context;
     
     Dequeue *ptr_dequeue;
 
-    dlb_int algorithm; //! TODO : create enum
-    dlb_int (*ptr_algorithm_function)(gaspi_rank_t);
+    TITUS_DLB_int                 algorithm;
+    TITUS_DLB_int (*ptr_algorithm_function)(gaspi_rank_t);
     
     gaspi_number_t gaspi_topo;
     
@@ -150,9 +153,9 @@ private :
     gaspi_size_t            shared_tmp_result_segment_size;
     gaspi_size_t            shared_scratch_segment_size;
     
-    gaspi_segment_id_t      segment_task;    // task sharing segment
-    gaspi_segment_id_t      segment_result;  // results returning segment used for pushing results back to task owners and routing to them
-    gaspi_segment_id_t      segment_tmp;     // temporary results segments where results are pushed as they are calculated by local process
+    gaspi_segment_id_t      segment_task; // task sharing segment
+    gaspi_segment_id_t      segment_result; // results returning segment used for pushing results back to task owners and routing to them
+    gaspi_segment_id_t      segment_tmp; // temporary results segments where results are pushed as they are calculated by local process
     gaspi_segment_id_t      segment_scratch; // scratch segment used for pulling distant segment metadata.
 
     gaspi_queue_id_t        queue_task;
@@ -169,11 +172,11 @@ private :
     MetadataTmp             *get_metadata_tmp()    { return ((MetadataTmp *)ptr_segment_tmp);       }
 
     
-    dlb_int task_result_counter; //! TODO : move to logger
-    dlb_int comm_send_counter; //! TODO : move to logger
+    TITUS_DLB_int task_result_counter; //! TODO : move to logger
+    TITUS_DLB_int comm_send_counter; //! TODO : move to logger
 
 
-    friend class DLB_impl;
+    friend class TITUS_DLB_impl;
     friend class DVS_impl;
     friend struct Dequeue;
     friend struct SegmentMetadata;
@@ -183,24 +186,24 @@ private :
     friend struct MetadataTmp;
 };
 
-std::ostream & operator << (std::ostream & out , const DLB_Context_impl & arg);
+std::ostream & operator << (std::ostream & out , const TITUS_DLB_Context_impl & arg);
 //--------------------------------------------------------------
 //Local Dequeue
 //--------------------------------------------------------------
 struct Dequeue
 {
-    uint64_t head;
-    uint64_t tail;
+    TITUS_DLB_int head;
+    TITUS_DLB_int tail;
     void *base_task;
     
-    gaspi_rank_t owner_task_rank;
-    uint64_t end_task_id;
-    size_t task_size;      //BYTES, suppose all tasks are same size //! TODO: just make it a size_t then :D
+    TITUS_DLB_int owner_task_rank;
+    TITUS_DLB_int end_task_id;
+    TITUS_DLB_int task_size;      //BYTES, suppose all tasks are same size //! TODO: just make it a size_t then :D
 
-    size_t result_size;
+    TITUS_DLB_int result_size;
 
     void *problem;
-    size_t problem_size_allocated; // ?
+    TITUS_DLB_int problem_size_allocated;
     void (*ptr_task_function)(void*, void*, void*);
     void *ptr_task_params;
     

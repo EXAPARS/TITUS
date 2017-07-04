@@ -15,9 +15,9 @@
 * You should have received a copy of the GNU Lesser General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
- 
 
-#include "dlb_buffered_segment_metadata.hpp"
+
+#include "TITUS_DLB_buffered_segment_metadata.hpp"
 
 
 // *********************************************************************
@@ -29,7 +29,7 @@
 // Copying sizeof(BufferElt) + data_size adequetely copies the buffer entry as a whole.
 
 // *** CONSTRUCTOR ***
-BufferElt::BufferElt(dlb_int first_task_id, dlb_int nb_result, dlb_int task_size, gaspi_rank_t owner):
+BufferElt::BufferElt(TITUS_DLB_int first_task_id, TITUS_DLB_int nb_result, TITUS_DLB_int task_size, gaspi_rank_t owner):
 	first_task_id(first_task_id), nb_result(nb_result), data_size(task_size * nb_result), owner(owner)
 {}
 
@@ -58,9 +58,9 @@ BufferElt* BufferElt::next()const{
 bool BufferElt::is_valid()const{
 	//if (first_task_id < 0) return false;
 	if (nb_result == 0) return false;
-	if (buffer_entry_size() > ((const DLB_Context_impl *)DLB_impl::get_context())->get_metadata_result()->get_size()) return false;
-	if (data_size > ((const DLB_Context_impl *)DLB_impl::get_context())->get_metadata_result()->get_size()) return false;
-	if (owner > DLB_impl::get_context()->get_nb_ranks()) return false;
+	if (buffer_entry_size() > ((const TITUS_DLB_Context_impl *)TITUS_DLB_impl::get_context())->get_metadata_result()->get_size()) return false;
+	if (data_size > ((const TITUS_DLB_Context_impl *)TITUS_DLB_impl::get_context())->get_metadata_result()->get_size()) return false;
+	if (owner > TITUS_DLB_impl::get_context()->get_nb_ranks()) return false;
 	if (data_size == 0) return false;
 	return true;
 }
@@ -80,13 +80,13 @@ BufferedSegmentMetadata * BufferedSegmentMetadata::read_to_scratch(gaspi_rank_t 
 
 BufferedSegmentMetadata * BufferedSegmentMetadata::read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch){
 	if (target_segment_id == (gaspi_segment_id_t)-1)
-		target_segment_id = DLB_impl::get_context()->segment_task;
-	gaspi_segment_id_t scratch_segment_id = DLB_impl::get_context()->segment_scratch;
-	gaspi_queue_id_t queue_scratch_id = DLB_impl::get_context()->queue_scratch;
-	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(BufferedSegmentMetadata), queue_scratch_id, DLB_GASPI_TIMEOUT ) );
-	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, DLB_GASPI_TIMEOUT ) );
+		target_segment_id = TITUS_DLB_impl::get_context()->segment_task;
+	gaspi_segment_id_t scratch_segment_id = TITUS_DLB_impl::get_context()->segment_scratch;
+	gaspi_queue_id_t queue_scratch_id = TITUS_DLB_impl::get_context()->queue_scratch;
+	SUCCESS_OR_DIE( gaspi_read( scratch_segment_id, offset_in_scratch, target_rank, target_segment_id, 0, sizeof(BufferedSegmentMetadata), queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
+	SUCCESS_OR_DIE( gaspi_wait( queue_scratch_id, TITUS_DLB_GASPI_TIMEOUT ) );
 
-	return (BufferedSegmentMetadata*) ADD_PTR(DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
+	return (BufferedSegmentMetadata*) ADD_PTR(TITUS_DLB_impl::get_context()->ptr_segment_scratch , offset_in_scratch);
 }
 
 // *** helpers & printers ***
@@ -116,12 +116,16 @@ BufferEltIterator BufferedSegmentMetadata::end() const{
 
 //typedef std::map<gaspi_rank_t,elts_collection> buffer_elts_by_dest;
 BufferedSegmentMetadata::buffer_elts_by_dest & operator <<(BufferedSegmentMetadata::buffer_elts_by_dest & arg, BufferedSegmentMetadata::buffer_elts_by_dest::value_type const & val){
-	ASSERT(val.second.second->is_valid());
+	if (! val.second.second->is_valid()){
+		TITUS_DBG << "Error : ASSERT IS GOING TO FAIL : invalid buffer element : " << val.second.second << std::endl;
+		usleep (100000);
+		ASSERT(val.second.second->is_valid());
+	}
 	arg.insert(val);
 	return arg;
 }
 BufferedSegmentMetadata::buffer_elts_by_dest & operator <<(BufferedSegmentMetadata::buffer_elts_by_dest & arg, BufferedSegmentMetadata::buffer_elts_by_dest::mapped_type const & val){
-	return arg << BufferedSegmentMetadata::buffer_elts_by_dest::value_type((val.second->owner != DLB_impl::get_context()->get_rank() ? DVS::select_next_hop_to(val.second->owner) : val.second->owner) ,val);
+	return arg << BufferedSegmentMetadata::buffer_elts_by_dest::value_type((val.second->owner != TITUS_DLB_impl::get_context()->get_rank() ? DVS::select_next_hop_to(val.second->owner) : val.second->owner) ,val);
 }
 template<class iterator_type>
 BufferedSegmentMetadata::buffer_elts_by_dest & operator << (BufferedSegmentMetadata::buffer_elts_by_dest & arg, std::pair<iterator_type, iterator_type> const & val){
@@ -151,11 +155,12 @@ gaspi_notification_t BufferedSegmentMetadata::wait_notification_for_elt(int elt_
 		ASSERT(retval == GASPI_TIMEOUT);
 		//print_stacktrace_and_quit(-1); //uncomment to generate error, stacktrace and library state
 		TITUS_DBG << "BufferedSegmentMetadata::wait_notification_for_elt : [WARNING] waiting for notification for elt " << elt_index << " for " << (rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) << "ms, seg_id = " << (uint)segment_id << std::endl;
+		assert ((rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) < 10000); // abort after 10secs
 	}
 	ASSERT(dummy == elt_index);
 	gaspi_notification_t val;
 	gaspi_notify_reset(segment_id, elt_index, &val);
-	//TITUS_DBG << "BufferedSegmentMetadata::wait_notification_for_elt : recieved notification for " << val << " elements, starting at index " << elt_index << std::endl;
+	//~ TITUS_DBG << "BufferedSegmentMetadata::wait_notification_for_elt : recieved notification for " << val << " elements, starting at index " << elt_index << std::endl;
 
 	return val;
 }
@@ -167,13 +172,14 @@ void BufferedSegmentMetadata::wait_notifications_for_all_elts()const{
 // try pushing all elts of buffer and local_transiting_results to next hop or submit results if dest = local rank
 // by default results that need to be sent to another process are sent to the same segment id.
 void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
-	if (is_empty()) return; //is_empty if both segment and local_transiting_results are empty
+	//~ TITUS_DBG << "in BufferedSegmentMetadata::try_flush_buffer_elts_packed" << std::endl;
+
+	if (is_empty()) return; //! todo : take local_transiting_results.size() into acount
 	if (! (buffer_head < segment_size)){
 		TITUS_DBG << "ASSERT IS GOING TO FAIL : BufferedSegmentMetadata::try_flush_buffer_elts_packed > invalid buffer head : " << buffer_head << ">= " << segment_size << std::endl; //TITUS_DBG.flush();
 		ASSERT(buffer_head < segment_size);
 	}
-	DLB_Context_impl * ctx = DLB_impl::get_context();
-	
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
     // lock local segment
     uint64_t start_try_lock = rdtsc();
     gaspi_atomic_value_t old_value = 0;
@@ -184,13 +190,34 @@ void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
         if (old_value == SEGMENT_AVAILABLE) break;
     }
     uint64_t lock_acquired = rdtsc();
-	//TITUS_DBG << "BufferedSegmentMetadata::try_flush_buffer_elts_packed : local segment locked for flush after " << (lock_acquired - start_try_lock) / (TITUS_PROC_FREQ / 1000000) << " µs, segment occupation = " << buffer_head << "/" << segment_size << " (" << buffer_elt_count << " elements in buffer)" << std::endl;
+	//~ TITUS_DBG << "BufferedSegmentMetadata::try_flush_buffer_elts_packed : local segment locked for flush after " << (lock_acquired - start_try_lock) / (TITUS_PROC_FREQ / 1e6) << " µs, segment occupation = " << buffer_head << "/" << segment_size << " (" << buffer_elt_count << " elements in buffer)" << std::endl;
 	wait_notifications_for_all_elts();
 	
 	// agregate all locally available results into local_transiting_results.
 	for (auto seg_it = begin(); seg_it != end() ; seg_it ++){
 		local_transiting_results << buffer_elts_by_dest::mapped_type(segment_id, &(*seg_it));
 	}
+	
+	uint failed_push = 0; // increments each time the first element of local_transiting_results is the same than at last call else resets
+	if (local_transiting_results.size() > 0){
+		static TITUS_DLB_int last_first_task_id = local_transiting_results.begin()->second.second->first_task_id;
+		TITUS_DLB_int first_task_id = local_transiting_results.begin()->second.second->first_task_id;
+		if (first_task_id == last_first_task_id) failed_push ++;
+		else failed_push = 0;
+	}
+	else failed_push = 0;
+	if (failed_push > 1000){
+		gaspi_rank_t target = DVS::select_next_hop_to(local_transiting_results.begin()->second.second->owner);
+		TITUS_DBG << "ASSERT IS GOING TO FAIL : failed_push > 1000."
+				  << "lets have a look at the remote segment @rank " << (uint)target
+				  << " on route to " << local_transiting_results.begin()->second.second->owner << std::endl; //TITUS_DBG.flush();
+		TITUS_DBG << *read_to_scratch(target);
+		ASSERT(failed_push <= 1000);
+	}
+	
+	//! TODO : cleanup
+	//TITUS_DBG << "BufferedSegmentMetadata::try_flush_buffer_elts_packed() : agregated local_transiting_results : " << std::endl;
+	//print_local_transiting_results(TITUS_DBG);
 	
 	auto begin_range = local_transiting_results.begin() ;
 	auto end_range = local_transiting_results.upper_bound(begin_range->first);
@@ -212,10 +239,10 @@ void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
 		}
 		
 		// tauto check
-		if (DLB_impl::get_context()->registrations_status[target] != true){
-			TITUS_DBG << "ERROR RANK " << DLB_impl::get_context()->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
+		if (TITUS_DLB_impl::get_context()->registrations_status[target] != true){
+			TITUS_DBG << "ERROR RANK " << TITUS_DLB_impl::get_context()->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
 			"registrations_status[" << target << "] != true" << std::endl; //TITUS_DBG.flush();
-			ASSERT(DLB_impl::get_context()->registrations_status[target] == true);
+			ASSERT(TITUS_DLB_impl::get_context()->registrations_status[target] == true);
 		}
 
 		// push elements
@@ -259,7 +286,8 @@ void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
 		}
 		begin_range = end_range;
 	}
-
+	gaspi_wait(ctx->queue_result,TITUS_DLB_GASPI_TIMEOUT);
+	
 	// gaspi_wait
 	uint64_t wait_start = rdtsc();
 	while (true){
@@ -272,7 +300,8 @@ void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
 
     purge();
     // unlock local buffer
-    ASSERT( compare_and_swap_status(ctx->get_rank(), segment_id, COPY_IN_PROGRESS, SEGMENT_AVAILABLE) == COPY_IN_PROGRESS );
+    ASSERT( compare_and_swap_status(ctx->get_rank(), segment_id, COPY_IN_PROGRESS, SEGMENT_AVAILABLE, true) == COPY_IN_PROGRESS );
+	//~ TITUS_DBG << "BufferedSegmentMetadata::try_flush_buffer_elts_packed : done in " << (rdtsc() - start_try_lock) / (TITUS_PROC_FREQ / 1e3) << " ms." << std::endl;
 }
 
 
@@ -282,7 +311,7 @@ void BufferedSegmentMetadata::try_flush_buffer_elts_packed(){
 //! does call gaspi_wait. local memory for corresponding buffer elements shall not be modified until a successfull call to gaspi_wait on the results queue.
 template <class InputIterator> // some class of iterator "pointing" to std::pair<segment_id_t, BufferElt*>
 BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::select_elts_to_push(InputIterator begin, InputIterator end, size_t available_size, size_t max_elts_count){
-	DLB_Context_impl * ctx = DLB_impl::get_context();
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 
 	selected_elts_to_push r;
 	for (auto it = begin ; it != end ; it++){
@@ -317,48 +346,48 @@ BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::try_push
 	if (begin == end) return selected_elts_to_push();
 	
 	//TITUS_DBG << "entered try_push_vector_elt_to" << std::endl; TITUS_DBG.flush();
-	DLB_Context_impl * ctx = DLB_impl::get_context();
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 
 	// #################### try lock remote segment ####################
 	gaspi_atomic_value_t old_status_value = compare_and_swap_status(target, ctx->segment_result, SEGMENT_AVAILABLE, ctx->get_rank());
 	if (old_status_value != SEGMENT_AVAILABLE){
 		// failed to lock remote segment : return empty results
-		//TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : failed to lock segment " << (uint) dst_seg_id << " on rank " << (uint)target << std::endl;
-		usleep(20);
+		TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : failed to lock segment " << (uint) dst_seg_id << " on rank " << (uint)target << std::endl;
 		return selected_elts_to_push();
 	}
 	uint64_t lock_start = rdtsc();
 	
 	BufferedSegmentMetadata * tmp = read_to_scratch(target); // read remote state to scratch
-	// create a local copy. consider scratch data gone.
-	BufferedSegmentMetadata * remote_bsm = (BufferedSegmentMetadata *) malloc(sizeof(BufferedSegmentMetadata));
-	ASSERT(remote_bsm != nullptr);
-	memcpy((void*)remote_bsm,tmp,sizeof(BufferedSegmentMetadata));
-	
+	// print remote buffer state
+	//! TODO : cleanup
+	// TITUS_DBG << "try_push_vector_elt_to : locked remote segment : rank=" << target << ", current_head=" << tmp->buffer_head << ", wipe_id=" << tmp->segment_wipe_id << std::endl; TITUS_DBG.flush();
+	BufferedSegmentMetadata * remote_bsm = (BufferedSegmentMetadata *) malloc(sizeof(BufferedSegmentMetadata)); ASSERT(remote_bsm != nullptr); memcpy((void*)remote_bsm,tmp,sizeof(BufferedSegmentMetadata)); 
+	// create a local mem copy to free up scratch space. consider tmp gone.
 	size_t available = remote_bsm->segment_size > remote_bsm->buffer_head ? remote_bsm->segment_size - remote_bsm->buffer_head : 0;
 	
 	selected_elts_to_push r = select_elts_to_push(begin, end, available, MAX_BUFFER_ELTS - remote_bsm->buffer_elt_count);
 	
 	if (r.elt_count != 0) {
 		// perform remote memory reservation
+		
 		gaspi_atomic_value_t value_old;
-		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(dst_seg_id, offsetof(typeofthis, buffer_head), target, r.to_reserve, &value_old, GASPI_BLOCK) );
+		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(dst_seg_id, offsetof(typeofthis, buffer_head), target, r.to_reserve, &value_old, TITUS_DLB_GASPI_TIMEOUT) );
 		ASSERT(value_old == remote_bsm->buffer_head);
 
-		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(dst_seg_id, offsetof(typeofthis, buffer_elt_count), target, r.elt_count, &value_old, GASPI_BLOCK) );
+		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(dst_seg_id, offsetof(typeofthis, buffer_elt_count), target, r.elt_count, &value_old, TITUS_DLB_GASPI_TIMEOUT) );
 		ASSERT(value_old == remote_bsm->buffer_elt_count);
 	}
-	//TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : reserved=" << r.to_reserve << " , target=" << target << " elt_count=" << r.elt_count << ", vec_size=" << r.selected.size() << " elements, starting at index " << remote_bsm->buffer_elt_count << ", offset=" << (uint)remote_bsm->buffer_head << std::endl;
 	
 	
 	// ##################### unlock remote segment #####################
-	old_status_value = compare_and_swap_status(target, ctx->segment_result, ctx->get_rank(), SEGMENT_AVAILABLE);
+	old_status_value = compare_and_swap_status(target, ctx->segment_result, ctx->get_rank(), SEGMENT_AVAILABLE, true);
 	if (old_status_value != ctx->get_rank()){
-		TITUS_DBG << "ASSERT IS GOING TO FAIL : BufferedSegmentMetadata::try_remote_buffer_alloc > unlock failed : " << state_str(old_status_value) << "!= " << state_str(ctx->get_rank()) << std::endl; //TITUS_DBG.flush();
+		TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : ASSERT IS GOING TO FAIL : BufferedSegmentMetadata::try_remote_buffer_alloc > unlock failed : " << state_str(old_status_value) << "!= " << state_str(ctx->get_rank()) << std::endl; //TITUS_DBG.flush();
 		ASSERT(old_status_value == ctx->get_rank());
 	}
 	uint64_t lock_end = rdtsc();
 
+	TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : reserved=" << r.to_reserve << " , target=" << target << " elt_count=" << r.elt_count << ", vec_size=" << r.selected.size() << " elements, starting at index " << remote_bsm->buffer_elt_count << ", offset=" << (uint)remote_bsm->buffer_head << std::endl;
 
 	if (r.elt_count == 0) return r;
     // else construct gaspi_write_list arguments
@@ -423,32 +452,37 @@ BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::try_push
 			elt_count_iter,
 			segment_id_local_iter, offset_local_iter,
 			args.target, segment_id_remote_iter, offset_remote_iter, size_iter,
-			ctx->queue_result, GASPI_BLOCK) );
+			ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT) );
 	}
 	gaspi_notification_id_t notify_id = remote_bsm->buffer_elt_count; // index of first element sent
 	gaspi_notification_t notify_val = r.elt_count; // # of elts sent
 	SUCCESS_OR_DIE( gaspi_notify(
 		dst_seg_id, args.target, notify_id, notify_val,
-		ctx->queue_result, GASPI_BLOCK) );
-	// store information about this write_list for later use
+		ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT) );
+	//~ TITUS_DBG << "BufferedSegmentMetadata::try_push_vector_elt_to : issued notification for " << notify_val << " elements, starting at index " << notify_id << std::endl;
+
 	pending_write_lists->push_back(std::move(args));
 	
-	ctx->get_logger()->signal_results_pushed(results_pushed_count);
-
 	free (remote_bsm);
-	gaspi_wait(ctx->queue_result,GASPI_BLOCK);
+	
+	ctx->get_logger()->signal_results_pushed(results_pushed_count);
+	//! TODO : move gaspi_wait outside of the lock (NOT TRIVIAL)
+	SUCCESS_OR_DIE( gaspi_wait(ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT) );
 	return std::move(r);
 }
 
 
-//! OLD & DEPRECATED
+//! TODO : OLD AND SHOULD BE DEPRECATED.
+//! piecewise remote memory reservation is inneficient. should use try_push_vector_elt_to
 // allocate remote memory in rank target, in buffered segment seg_id
 // returns the offset at witch memory has been allocated or nullptr if no memory was available as the first field of the pair
 // and the element id of the reserved memory area in the distant buffered segment.
 // segment_id must be created as such
 // try_remote_buffer_alloc does not modify any local value beside scratch segment.
 std::pair<gaspi_offset_t,gaspi_atomic_value_t> BufferedSegmentMetadata::try_remote_buffer_alloc(size_t bytes, gaspi_segment_id_t seg_id, gaspi_rank_t target)const {
-    DLB_Context_impl * ctx = DLB_impl::get_context();
+    TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
+    
+    uint64_t try_remote_buffer_alloc_start = rdtsc(); // TODO : cleanup
     
     gaspi_atomic_value_t old_status_value = 0;
 	
@@ -458,40 +492,35 @@ std::pair<gaspi_offset_t,gaspi_atomic_value_t> BufferedSegmentMetadata::try_remo
 	// lock segment using rank as lock value if remote rank is available
 	old_status_value = compare_and_swap_status(target, seg_id, SEGMENT_AVAILABLE, ctx->get_rank());
 	if (old_status_value != SEGMENT_AVAILABLE){
+		TITUS_DBG << "BufferedSegmentMetadata::try_remote_buffer_alloc : failed to lock segment " << (uint) seg_id << " on rank " << (uint)target << std::endl;
 		// failed to lock segment
 		return ret; //(-1,0)
 	}
-	//else : segment is locked
-    gaspi_atomic_value_t old_head_value; // used for final fetch & add
-    gaspi_atomic_value_t distant_buffer_head;
+	//else : remote segment is locked
     gaspi_atomic_value_t reserved_memory = 0;
-    gaspi_atomic_value_t distant_segment_size;
-    gaspi_atomic_value_t distant_buffer_elt_count;
     
-    // if gaspi atomic value can be a pointer or offset
-    ASSERT(sizeof(gaspi_atomic_value_t) >= sizeof(void *));
-	// fetch remote size
-	SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, segment_size), target, 0, &distant_segment_size, DLB_GASPI_TIMEOUT) );
-	// fetch remote buffer head
-	SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_head), target, 0, &distant_buffer_head, DLB_GASPI_TIMEOUT) );
-	// fetch remote buffer element count
-	SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_elt_count), target, 0, &distant_buffer_elt_count, DLB_GASPI_TIMEOUT) );
+	// read remote buffer state
+	BufferedSegmentMetadata * tmp = read_to_scratch(target); // read remote state to scratch
+	//! TODO : cleanup
+	// TITUS_DBG << "try_push_vector_elt_to : locked remote segment : rank=" << target << ", current_head=" << tmp->buffer_head << ", wipe_id=" << tmp->segment_wipe_id << std::endl; TITUS_DBG.flush();
+	BufferedSegmentMetadata * remote_bsm = (BufferedSegmentMetadata *) malloc(sizeof(BufferedSegmentMetadata)); ASSERT(remote_bsm != nullptr); memcpy((void*)remote_bsm,tmp,sizeof(BufferedSegmentMetadata)); 
+
 	// reserve memory
-	if (distant_buffer_head + bytes < distant_segment_size && distant_buffer_elt_count < MAX_BUFFER_ELTS){
+	gaspi_atomic_value_t old_head_value, distant_buffer_elt_count;
+	if (remote_bsm->buffer_head + bytes < remote_bsm->segment_size && remote_bsm->buffer_elt_count < MAX_BUFFER_ELTS){
 		// using fetch & add
-		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_head), target, bytes, &old_head_value, DLB_GASPI_TIMEOUT) );
-		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_elt_count), target, 1, &distant_buffer_elt_count, DLB_GASPI_TIMEOUT) );
-		
+		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_head), target, bytes, &old_head_value, TITUS_DLB_GASPI_TIMEOUT) );
+		SUCCESS_OR_DIE( gaspi_atomic_fetch_add(seg_id, offsetof(typeofthis, buffer_elt_count), target, 1, &distant_buffer_elt_count, TITUS_DLB_GASPI_TIMEOUT) );
 		reserved_memory = bytes;
-		//TITUS_DBG << " successfully reserved " << bytes << " bytes on rank " << target << std::endl; TITUS_DBG.flush();
+		//fprintf(stderr, " > successfully reserved %lx bytes on rank %d\n", bytes, target);
 	}
 	else {
-		//TITUS_DBG << " failed to reserve " << bytes << " bytes on rank " << target << std::endl; TITUS_DBG.flush();
+		//fprintf(stderr, " > failed to reserve %lx bytes on rank %d\n", bytes, target);
 	}
 	// else : not enough space , reserved_memory = 0
 	
 	// unlock remote segment
-	old_status_value = compare_and_swap_status(target, seg_id, ctx->get_rank(), SEGMENT_AVAILABLE);
+	old_status_value = compare_and_swap_status(target, seg_id, ctx->get_rank(), SEGMENT_AVAILABLE, true);
 	if (old_status_value != ctx->get_rank()){
 		TITUS_DBG << "ASSERT IS GOING TO FAIL : BufferedSegmentMetadata::try_remote_buffer_alloc > unlock failed : " << state_str(old_status_value) << "!= " << state_str(ctx->get_rank()) << std::endl; //TITUS_DBG.flush();
 		ASSERT(old_status_value == ctx->get_rank());
@@ -501,6 +530,9 @@ std::pair<gaspi_offset_t,gaspi_atomic_value_t> BufferedSegmentMetadata::try_remo
 	if (reserved_memory != 0) ret.first = old_head_value;
 	else ret.first = (gaspi_offset_t) -1;
 	ret.second = distant_buffer_elt_count;
+
+    uint64_t try_remote_buffer_alloc_end = rdtsc(); // TODO : cleanup
+	//~ TITUS_DBG << "BufferedSegmentMetadata::try_remote_buffer_alloc : done (reserved " << bytes << " B on segment " << (uint) seg_id << " on rank " << (uint)target << ") in " << ((double)(try_remote_buffer_alloc_end-try_remote_buffer_alloc_start)) / (double)(TITUS_PROC_FREQ / 1e3) << "ms" << std::endl;
 	
 	return ret;
 }
@@ -512,7 +544,7 @@ std::pair<gaspi_offset_t,gaspi_atomic_value_t> BufferedSegmentMetadata::try_remo
 void BufferedSegmentMetadata::try_flush_buffer_elts() {
 	if (is_empty()) return;
 
-	DLB_Context_impl * ctx = DLB_impl::get_context();
+	TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 	//fprintf(stderr,"rank %ld : BufferedSegmentMetadata::try_flush_buffer_elts(%d) > head = %lx, tail = %lx\n", ctx->get_rank(), segment_id, buffer_head, buffer_tail);
     
     // lock local segment
@@ -530,7 +562,7 @@ void BufferedSegmentMetadata::try_flush_buffer_elts() {
     // copy all buffer entries, either to a distant segment using remote write, or to a local buffer.
     for (auto it = begin(); it < end(); it = it->next()) {
 		ASSERT (i < buffer_elt_count);
-		//TITUS_DBG << "gaspi_notify_waitsome(segment_id=" << (uint)segment_id << ", i=" << (uint)i << ", 1, & dummy, GASPI_BLOCK)" << std::endl; //TITUS_DBG.flush();
+		//TITUS_DBG << "gaspi_notify_waitsome(segment_id=" << (uint)segment_id << ", i=" << (uint)i << ", 1, & dummy, TITUS_DLB_GASPI_TIMEOUT)" << std::endl; //TITUS_DBG.flush();
 
 		//TITUS_DBG << "gaspi_notify_reset(segment_id=" << (uint)segment_id << ", i=" << i << ", &val);" << std::endl; //TITUS_DBG.flush();
 		
@@ -547,11 +579,11 @@ void BufferedSegmentMetadata::try_flush_buffer_elts() {
 			// push to next remote results segment in route
 			gaspi_rank_t dest_rank =  DVS::select_next_hop_to(it->owner);
 			
-			if (DLB_impl::get_context()->registrations_status[dest_rank] != true){
-				TITUS_DBG << "ERROR RANK " << DLB_impl::get_context()->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
+			if (TITUS_DLB_impl::get_context()->registrations_status[dest_rank] != true){
+				TITUS_DBG << "ERROR RANK " << TITUS_DLB_impl::get_context()->get_rank() << " : ASSERT IS GOING TO FAIL : " <<
 				"registrations_status[" << dest_rank << "] != true while trying to push element " << *it << std::endl; //TITUS_DBG.flush();
 			}
-			ASSERT(DLB_impl::get_context()->registrations_status[dest_rank] == true);
+			ASSERT(TITUS_DLB_impl::get_context()->registrations_status[dest_rank] == true);
 
 			// try_push_buffer_elt_to
 			if (try_push_buffer_elt_to(&(*it), dest_rank, ctx->segment_result) == false){
@@ -578,7 +610,7 @@ void BufferedSegmentMetadata::try_flush_buffer_elts() {
 	}
 	ASSERT (i == buffer_elt_count);
 	
-	//! TODO : optimize : hide this wait by using an other segment or flip-flop buffer (it may be a bottleneck to both work and result flow)
+	//TODO : optimize : hide this wait by using an other segment or flip-flop buffer (it may be a bottleneck to both work and result flow)
 	if (gaspi_wait_required){
 		uint64_t wait_start = rdtsc();
 		while (true){
@@ -592,20 +624,25 @@ void BufferedSegmentMetadata::try_flush_buffer_elts() {
 
     purge();
     // unlock local buffer
-    bool unlock_success = compare_and_swap_status(ctx->get_rank(), segment_id, COPY_IN_PROGRESS, SEGMENT_AVAILABLE) == COPY_IN_PROGRESS;
+    bool unlock_success = compare_and_swap_status(ctx->get_rank(), segment_id, COPY_IN_PROGRESS, SEGMENT_AVAILABLE, true) == COPY_IN_PROGRESS;
     ASSERT(unlock_success);
 }
 
 //! OLD & DEPRECATED
 // push the buffer elt and its associated subsequent data into a distant buffered segment.
 // does not wait for the communication to complete. One must wait for queue context->queue_result for completion before releasing the memory used by the segment.
+//! TODO : optimise by chunking buffer elts that go to the same remote rank || send_multiple_buffer_elt_to (using gaspi_write_list)
 bool BufferedSegmentMetadata::try_push_buffer_elt_to(gaspi_pointer_t buffer_elt, gaspi_rank_t target, gaspi_segment_id_t dst_seg_id) const{
-	DLB_Context_impl * ctx = DLB_impl::get_context();
 
     BufferElt *e = (BufferElt*)buffer_elt;
 
-	ASSERT(e->is_valid());
-	
+    // check BufferElt validity
+    //! TODO : cleanup
+    TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
+    if (e->owner >= ctx->get_nb_ranks()){
+		TITUS_DBG << e;
+	}
+
     gaspi_offset_t src_offset = DIFF_PTR(buffer_elt, this);
 
     std::pair<gaspi_offset_t,gaspi_atomic_value_t> dest_offset = try_remote_buffer_alloc(e->buffer_entry_size(), dst_seg_id, target);
@@ -614,19 +651,19 @@ bool BufferedSegmentMetadata::try_push_buffer_elt_to(gaspi_pointer_t buffer_elt,
 		//TITUS_DBG << "BufferedSegmentMetadata::try_push_buffer_elt_to : reserved elt " << dest_offset.second << " on rank " << target << " : " << *e << std::endl; //TITUS_DBG.flush();
         //TITUS_DBG
 		//	<< " : gaspi_write_notify( segment_id_local=" << (uint)segment_id << ", offset_local="<< src_offset << ", target="<< target << ", seg_id_remote=" << (uint)dst_seg_id << ", offset_remote=" << dest_offset.first
-		//	<< ", size()=" << e->buffer_entry_size() << ", notification_id=" << dest_offset.second << ", 1, ctx->queue_result, DLB_GASPI_TIMEOUT );" << std::endl; //TITUS_DBG.flush();
+		//	<< ", size()=" << e->buffer_entry_size() << ", notification_id=" << dest_offset.second << ", 1, ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT );" << std::endl; //TITUS_DBG.flush();
         gaspi_notification_id_t notification_id = dest_offset.second;
         wait_if_queue_full(ctx->queue_result,0);
-        SUCCESS_OR_DIE(gaspi_write_notify( segment_id, src_offset, target, dst_seg_id, dest_offset.first, (gaspi_size_t)e->buffer_entry_size(), notification_id, 1, ctx->queue_result, DLB_GASPI_TIMEOUT ));
+        SUCCESS_OR_DIE(gaspi_write_notify( segment_id, src_offset, target, dst_seg_id, dest_offset.first, (gaspi_size_t)e->buffer_entry_size(), notification_id, 1, ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT ));
         ctx->get_logger()->signal_results_pushed(e->nb_result);
         //TITUS_DBG << "BufferedSegmentMetadata::try_push_buffer_elt_to > "
 		//	<< "successfuly sent elt[" << *e << "] to segment " << (int)dst_seg_id << " on rank " << target << " as elt " << dest_offset.second << " @offset=" << dest_offset.first << std::endl; //TITUS_DBG.flush();
         return true;
-        //~ SUCCESS_OR_DIE( gaspi_atomic_fetch_add (ctx->segment_result, 0, t->owner_result_rank, nb_tasks, &value_old, DLB_GASPI_TIMEOUT));
+        //~ SUCCESS_OR_DIE( gaspi_atomic_fetch_add (ctx->segment_result, 0, t->owner_result_rank, nb_tasks, &value_old, TITUS_DLB_GASPI_TIMEOUT));
         //~ DEBUG_PRINT("gaspi_atomic_fetch_add (seg_src[%llu], off[0], rank[%llu], nb_result[%llu], value_old[%llu]))\n",ctx->segment_result, t->owner_result_rank, t->nb_result, value_old);
     }
     else {
-        //! TODO : can we trigger remote buffer purge, how would that improve the current scheme ?
+        //! todo : how to trigger remote buffer purge ?
         return false;
     }
 }
@@ -636,7 +673,7 @@ bool BufferedSegmentMetadata::try_push_buffer_elt_to(gaspi_pointer_t buffer_elt,
 void BufferedSegmentMetadata::try_push_local_transiting_results(){
 	if (local_transiting_results.size() == 0) return;
 
-    DLB_Context_impl * ctx = DLB_impl::get_context();
+    TITUS_DLB_Context_impl * ctx = TITUS_DLB_impl::get_context();
 	
 	BufferElt * loc_on_scratch = (BufferElt*)ctx->ptr_segment_scratch;
 	bool wait_required = false;
@@ -679,7 +716,7 @@ void BufferedSegmentMetadata::try_push_local_transiting_results(){
 				ctx->segment_scratch, DIFF_PTR(new_e,ctx->ptr_segment_scratch), 
 				target_rank, ctx->segment_result, alloc_res.first, (gaspi_size_t)new_e->buffer_entry_size(), 
 				notification_id, 1, 
-				ctx->queue_result, DLB_GASPI_TIMEOUT 
+				ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT 
 			));
 			ctx->get_logger()->signal_results_pushed(e->nb_result);
 
@@ -698,7 +735,7 @@ void BufferedSegmentMetadata::try_push_local_transiting_results(){
 	if (wait_required) {
 		uint64_t wait_start = rdtsc();
 		while (true){
-			gaspi_return_t retval = gaspi_wait(ctx->queue_result,DLB_GASPI_TIMEOUT);
+			gaspi_return_t retval = gaspi_wait(ctx->queue_result,TITUS_DLB_GASPI_TIMEOUT);
 			if (retval == GASPI_SUCCESS) break;
 			if (retval != GASPI_TIMEOUT) SUCCESS_OR_DIE(retval);
 			TITUS_DBG << "BufferedSegmentMetadata::try_push_local_transiting_results : WARNING : waiting for queue to fhush for " << (rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) << "ms" << std::endl;

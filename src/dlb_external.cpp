@@ -16,272 +16,274 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-// implements the external user-accessible classes of the lib defined in DLB.h as wrappers to the internal implementation
+
+// implements the external user-accessible classes of the lib defined in TITUS_DLB.h as wrappers to the internal implementation
 
 #include <stdio.h>
-#include <DLB.hpp>
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
+#include <TITUS_DLB.hpp>
+#include <TITUS_DLB_.h>
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
 
-//! TODO : rework fortran interfaces, ensure types validity
-extern "C"
-{
-    // DLB :
-    gaspi_return_t dlb_gaspi_proc_init_(gaspi_timeout_t timeout);
-    void dlb_set_nb_queues_(int * arg);
-    void dlb_parallel_work_();
 
-    // DLB_CONTEXT : 
-    void dlb_set_context_(void* arg);
-    void dlb_get_context_(void **ret_val);
-    void dlb_new_context_(void **ret_val, int *shared_task_segment_size, int *algorithm);
-    void dlb_set_problem_(void *context, void *problem, int *task_size, int *nb_task, void *result, int *result_size, void *ptr_task_function, void *params);
-    void dlb_get_logger_(void **ret_val, void *context);
-    void dlb_get_DVS_context_(void **ret_val, void *context);
-
-    // DLB_LOGGER :
-    void dlb_set_DVS_context_(void *context, void *arg);
-    void dlb_print_current_session_(void *logger, char *filename);
-    void dlb_print_agregated_session_info_(void *logger, char *filename);
-    void dlb_print_all_sessions_(void *logger, char *filename);
-
-    void dlb_dump_buffer_(void *logger);
-    void dlb_print_buffer_(void *logger, char *filename);
-    void dlb_set_autodump_(void *logger, int *val, char *logdir);
-}
 
 // *********************************************************************
-// ************************* DLB EXTERN C*******************************
+// ***************** TITUS_DLB EXTERN C Wrappers impl ************************
 // *********************************************************************
 
-// sets the gaspi configuration for the number of queues
-// can impact memory usage.
-void dlb_set_nb_queues_(int * arg) {
-    ASSERT(arg != nullptr);
-    if (*arg < 6){
-		TITUS_DBG << "error : dlb_set_nb_queues_ : TITUS requires at least 6 queues, arg = " << *arg << std::endl;
-		ASSERT(*arg >= 6);
-	}
-    gaspi_config_t conf;
-    ASSERT(gaspi_config_get(&conf));
-    conf.queue_num = *arg;
-    SUCCESS_OR_DIE(gaspi_config_set(conf));
+gaspi_return_t c_TITUS_DLB_gaspi_proc_init(gaspi_timeout_t timeout){
+	//~ std::cout << "c_TITUS_DLB_gaspi_proc_init(timeout = " << timeout << ")" << std::endl; std::cout.flush();
+	return TITUS_DLB::gaspi_proc_init(timeout);
 }
 
-gaspi_return_t dlb_gaspi_proc_init_(gaspi_timeout_t timeout){
-	return DLB::gaspi_proc_init(timeout);
+void c_TITUS_DLB_parallel_work() {
+	//~ std::cout << "c_TITUS_DLB_parallel_work()" << std::endl; std::cout.flush();
+    TITUS_DLB::parallel_work();
 }
 
-void dlb_parallel_work_() {
-    DLB::parallel_work();
+void c_TITUS_DLB_set_context(void* arg) {
+	//~ std::cout << "c_TITUS_DLB_set_context(arg=" << arg << ")" << std::endl; std::cout.flush();
+    TITUS_DLB::set_context((TITUS_DLB_Context *)arg);
 }
 
-void dlb_set_context_(void* arg) {
-    DLB::set_context((DLB_Context *)arg);
+void c_TITUS_DLB_get_context(void **ret_val) {
+	//~ std::cout << "c_TITUS_DLB_get_context(ret_val=" << ret_val << ")" << std::endl; std::cout.flush();
+    *ret_val = TITUS_DLB::get_context();
 }
 
-void dlb_get_context_(void **ret_val) {
-    *ret_val = DLB::get_context();
+void c_TITUS_DLB_new_context(void **ret_val, int shared_task_segment_size, int algorithm) {
+	std::cout << "c_TITUS_DLB_new_context(ret_val=" << ret_val << ", shared_task_segment_size=" << shared_task_segment_size << ", algorithm=" << algorithm << ")" << std::endl; std::cout.flush();
+	//! DODO : MEMORY LEAK where to free ?
+    *ret_val = new TITUS_DLB_Context(shared_task_segment_size, algorithm);
+	//~ std::cout << "new_context = " << * ret_val << std::endl;
 }
 
-void dlb_new_context_(void **ret_val, int *shared_task_segment_size, int *algorithm) {
-    *ret_val = new DLB_Context(*shared_task_segment_size, *algorithm);
+void c_TITUS_DLB_delete_context(void *context ) {
+	//~ std::cout << "c_TITUS_DLB_delete_context(context=" << context << ")" << std::endl; std::cout.flush();
+	//! DODO : MEMORY LEAK where to free ?
+    delete context;
 }
 
-void dlb_set_problem_(void *context, void *problem, int *task_size, int *nb_task, void *result, int *result_size, void *ptr_task_function, void *params) {
-    DLB_Context *ctx;
+void c_TITUS_DLB_set_problem(void *context, void *problem, int task_size, int nb_task, void *result, int result_size, void *ptr_task_function, void *params) {
+	//~ std::cout << "c_TITUS_DLB_set_problem("
+		//~ << "context=" << context 
+		//~ << ", problem=" << problem << ", task_size=" << task_size << ", nb_task=" << nb_task 
+		//~ << ", result=" << result << ", result_size=" << result_size
+		//~ << ", ptr_task_function= " << ptr_task_function << ", params=" << params 
+		//~ << ")" << std::endl; std::cout.flush();
+    TITUS_DLB_Context *ctx;
+    //!TODO: check functionality
     if (context == nullptr) {
-        if (DLB::get_context() == nullptr) {
-            DLB::set_context(new DLB_Context());
+        if (TITUS_DLB::get_context() == nullptr) {
+            TITUS_DLB::set_context(new TITUS_DLB_Context());
         }
-        ctx = DLB::get_context();
+        ctx = TITUS_DLB::get_context();
     }
-    else ctx = (DLB_Context *)context;
-    ctx->set_problem(problem, *task_size, *nb_task, result, *result_size, (void (*)(void*, void*, void*))ptr_task_function, params);
+    else ctx = (TITUS_DLB_Context *)context;
+    ctx->set_problem(problem, task_size, nb_task, result, result_size, (void (*)(void*, void*, void*))ptr_task_function, params);
 }
 
-void dlb_get_logger_(void **ret_val, void *context) {
-    *ret_val = ((DLB_Context *)context)->get_logger();
+void c_TITUS_DLB_get_logger(void **ret_val, void *context) {
+	//~ std::cout << "c_TITUS_DLB_get_logger(ret_val=" << ret_val << ", context=" << context << ")" << std::endl; std::cout.flush();
+    *ret_val = ((TITUS_DLB_Context *)context)->get_logger();
 }
 
-void dlb_get_DVS_context_(void **ret_val, void *context) {
-    *ret_val = ((DLB_Context *)context)->get_DVS_context();
+void c_TITUS_DLB_get_DVS_context(void **ret_val, void *context) {
+	//~ std::cout << "c_TITUS_DLB_get_DVS_context(ret_val=" << ret_val << ", context=" << context << ")" << std::endl; std::cout.flush();
+    *ret_val = ((TITUS_DLB_Context *)context)->get_DVS_context();
 }
 
-void dlb_set_DVS_context_(void *context, void *arg) {
-    ((DLB_Context *)context)->set_DVS_context((DVS_Context *)arg);
+void c_TITUS_DLB_set_DVS_context(void *context, void *arg) {
+	//~ std::cout << "c_TITUS_DLB_set_DVS_context(context=" << context << ", arg=" << arg << ")" << std::endl; std::cout.flush();
+    ((TITUS_DLB_Context *)context)->set_DVS_context((DVS_Context *)arg);
 }
 
-void dlb_print_current_session_(void *logger, char *filename) {
+void c_TITUS_DLB_print_current_session(void *logger, char *filename) {
+	//~ std::cout << "c_TITUS_DLB_print_current_session(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((DLB_Logger *)logger)->print_current_session(*out);
+        ((TITUS_DLB_Logger *)logger)->print_current_session(*out);
     }
     else{
-        ((DLB_Logger *)logger)->print_current_session(std::cout);
+        ((TITUS_DLB_Logger *)logger)->print_current_session(std::cout);
     }
 }
 
-void dlb_print_agregated_session_info_(void *logger, char *filename) {
+void c_TITUS_DLB_print_agregated_session_info(void *logger, char *filename) {
+	//~ std::cout << "c_TITUS_DLB_print_agregated_session_info(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((DLB_Logger *)logger)->print_agregated_session_info(*out);
+        ((TITUS_DLB_Logger *)logger)->print_agregated_session_info(*out);
     }
     else{
-        ((DLB_Logger *)logger)->print_agregated_session_info(std::cout);
+        ((TITUS_DLB_Logger *)logger)->print_agregated_session_info(std::cout);
     }
 }
-void dlb_print_all_sessions_(void *logger, char *filename) {
+void c_TITUS_DLB_print_all_sessions(void *logger, char *filename) {
+	//~ std::cout << "c_TITUS_DLB_print_all_sessions(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((DLB_Logger *)logger)->print_all_sessions(*out);
+        ((TITUS_DLB_Logger *)logger)->print_all_sessions(*out);
     }
     else{
-        ((DLB_Logger *)logger)->print_all_sessions(std::cout);
+        ((TITUS_DLB_Logger *)logger)->print_all_sessions(std::cout);
     }
 }
 
 
 
 
-void dlb_dump_buffer_(void *logger) {
-    ((DLB_Logger *)logger)->dump_buffer();
+void c_TITUS_DLB_dump_buffer(void *logger) {
+	//~ std::cout << "c_TITUS_DLB_dump_buffer(logger=" << logger << ")" << std::endl; std::cout.flush();
+    ((TITUS_DLB_Logger *)logger)->dump_buffer();
 }
 
-void dlb_print_buffer_(void *logger, char *filename) {
+void c_TITUS_DLB_print_buffer(void *logger, char *filename) {
+	//~ std::cout << "c_TITUS_DLB_print_buffer(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((DLB_Logger *)logger)->print_buffer(*out);
+        ((TITUS_DLB_Logger *)logger)->print_buffer(*out);
     }
     else{
-        ((DLB_Logger *)logger)->print_buffer(std::cout);
+        ((TITUS_DLB_Logger *)logger)->print_buffer(std::cout);
     }
 }
 
-void dlb_set_autodump_(void *logger, int *val, char *logdir) {
-    ((DLB_Logger *)logger)->set_autodump(*val!=0, logdir);
+void c_TITUS_DLB_set_autodump(void *logger, int *val, char *logdir) {
+	//~ std::cout << "c_TITUS_DLB_set_autodump(logger=" << logger << ", logdir=" << logdir << ")" << std::endl; std::cout.flush();
+    ((TITUS_DLB_Logger *)logger)->set_autodump(*val!=0, logdir);
 }
 
 // *********************************************************************
-// ***************************** DLB ***********************************
+// ***************************** TITUS_DLB ***********************************
 // *********************************************************************
-gaspi_return_t DLB::gaspi_proc_init(gaspi_timeout_t timeout){
-	return DLB_impl::gaspi_proc_init_impl(timeout);
+gaspi_return_t TITUS_DLB::gaspi_proc_init(gaspi_timeout_t timeout){
+	return TITUS_DLB_impl::gaspi_proc_init_impl(timeout);
+}
+bool TITUS_DLB::get_gaspi_init_complete(){
+	return TITUS_DLB_impl::get_gaspi_init_complete();
 }
 
-gaspi_return_t DLB::gaspi_barrier(gaspi_group_t group, gaspi_timeout_t timeout){
-	return DLB_impl::barrier(group,timeout);
+gaspi_return_t TITUS_DLB::gaspi_barrier(gaspi_group_t group, gaspi_timeout_t timeout){
+	return TITUS_DLB_impl::barrier(group,timeout);
 }
 
-void DLB::parallel_work(uint64_t timeout_ms) {
-    DLB_impl::parallel_work(timeout_ms);
+void TITUS_DLB::parallel_work(uint64_t timeout_ms) {
+    TITUS_DLB_impl::parallel_work(timeout_ms);
 }
     
-void DLB::set_context(DLB_Context * arg) {
-    DLB_impl::set_context(arg->m_impl);
+void TITUS_DLB::set_context(TITUS_DLB_Context * arg) {
+    TITUS_DLB_impl::set_context(arg->m_impl);
 }
-DLB_Context * DLB::get_context() {
-	if (DLB_impl::get_context() == nullptr) return nullptr;
-    return new DLB_Context(DLB_impl::get_context());
+TITUS_DLB_Context * TITUS_DLB::get_context() {
+	if (TITUS_DLB_impl::get_context() == nullptr) return nullptr;
+    return new TITUS_DLB_Context(TITUS_DLB_impl::get_context());
 }
 
-std::ostream & operator <<(std::ostream & out, DLB::DLB_Algorithm const & arg) {
+std::ostream & operator <<(std::ostream & out, TITUS_DLB::TITUS_DLB_Algorithm const & arg) {
     switch (arg) {
-        case DLB::WORK_REQUESTING : out << "WORK_REQUESTING"; break;
-        case DLB::WORK_STEALING : out << "WORK_STEALING"; break;
+        case TITUS_DLB::WORK_REQUESTING : out << "WORK_REQUESTING"; break;
+        case TITUS_DLB::WORK_STEALING : out << "WORK_STEALING"; break;
         default : out << "INVALID ALGORITHM VALUE";
     }
     return out;
 }
 
 // *********************************************************************
-// ************************* DLB_Context *******************************
+// ************************* TITUS_DLB_Context *******************************
 // *********************************************************************
 
-DLB_Context::DLB_Context() {
-    m_impl = new DLB_Context_impl();
+TITUS_DLB_Context::TITUS_DLB_Context() {
+    m_impl = new TITUS_DLB_Context_impl();
 }
-DLB_Context::DLB_Context(int shared_task_segment_size, int algorithm) {
-    m_impl = new DLB_Context_impl(shared_task_segment_size,algorithm);
+TITUS_DLB_Context::TITUS_DLB_Context(int shared_task_segment_size, int algorithm) {
+    m_impl = new TITUS_DLB_Context_impl(shared_task_segment_size,algorithm);
 }
-DLB_Context::DLB_Context(const char * config_filename) {
-    m_impl = new DLB_Context_impl(config_filename);
+TITUS_DLB_Context::TITUS_DLB_Context(const char * config_filename) {
+    m_impl = new TITUS_DLB_Context_impl(config_filename);
 }
-DLB_Context::DLB_Context(const DLB_Context &arg) {
-    m_impl = new DLB_Context_impl(*(arg.m_impl));
+TITUS_DLB_Context::TITUS_DLB_Context(const TITUS_DLB_Context &arg) {
+    m_impl = new TITUS_DLB_Context_impl(*(arg.m_impl));
 }
-DLB_Context::~DLB_Context() {
+TITUS_DLB_Context::~TITUS_DLB_Context() {
     delete m_impl;
 }
-void DLB_Context::set_problem(void *problem, size_t task_size, size_t nb_task, void *result, size_t result_size, void (*ptr_task_function)(void*, void*, void*), void * params) {
+void TITUS_DLB_Context::set_problem(void *problem, int task_size, int nb_task, void *result, int result_size, void (*ptr_task_function)(void*, void*, void*), void * params) {
     m_impl->set_problem(problem, task_size, nb_task, result, result_size, ptr_task_function, params);
 }
 
-DLB_Logger * DLB_Context::get_logger() {
-    return new DLB_Logger(m_impl->get_logger());
+TITUS_DLB_Logger * TITUS_DLB_Context::get_logger() {
+    return new TITUS_DLB_Logger(m_impl->get_logger());
 }
 
-DVS_Context * DLB_Context::get_DVS_context() {
+DVS_Context * TITUS_DLB_Context::get_DVS_context() {
     return m_impl->get_DVS_context();
 }
 
-void DLB_Context::set_DVS_context(DVS_Context * arg) {
+void TITUS_DLB_Context::set_DVS_context(DVS_Context * arg) {
     m_impl->set_DVS_context(arg);
 }
 
-dlb_int DLB_Context::get_rank()const {
+TITUS_DLB_int TITUS_DLB_Context::get_rank()const {
     return m_impl->get_rank();
 }
-dlb_int DLB_Context::get_nb_ranks()const {
+TITUS_DLB_int TITUS_DLB_Context::get_nb_ranks()const {
     return m_impl->get_nb_ranks();
 }
-dlb_int DLB_Context::get_nb_contexts(){
-	return DLB_Context_impl::get_context_count();
+TITUS_DLB_int TITUS_DLB_Context::get_nb_contexts(){
+	return TITUS_DLB_Context_impl::get_context_count();
 }
-dlb_int DLB_Context::get_context_id()const{
+TITUS_DLB_int TITUS_DLB_Context::get_context_id()const{
 	return m_impl->get_id();
 }
-void DLB_Context::print(std::ostream & out)const { m_impl->print_state(out); }
+void TITUS_DLB_Context::print(std::ostream & out)const { m_impl->print_state(out); }
 
 
-std::ostream & operator << (std::ostream & out, const DLB_Context & arg){
+std::ostream & operator << (std::ostream & out, const TITUS_DLB_Context & arg){
 	arg.print(out);
 	return out;
 }
 
 // DEBUG PRINTERS
 #ifdef DEBUG
-void DLB_Context::display_state()            { m_impl->display_state(); }
-void DLB_Context::display_metadatatask()    { m_impl->display_metadatatask(); }
-void DLB_Context::display_metadataresult()    { m_impl->display_metadataresult(); }
-void DLB_Context::display_metadatatmp()        { m_impl->display_metadatatmp(); }
-void DLB_Context::display_dequeue()            { m_impl->display_dequeue(); }
-void DLB_Context::display_Context()            { m_impl->display_Context(); }
+void TITUS_DLB_Context::display_state()            { m_impl->display_state(); }
+void TITUS_DLB_Context::display_metadatatask()    { m_impl->display_metadatatask(); }
+void TITUS_DLB_Context::display_metadataresult()    { m_impl->display_metadataresult(); }
+void TITUS_DLB_Context::display_metadatatmp()        { m_impl->display_metadatatmp(); }
+void TITUS_DLB_Context::display_dequeue()            { m_impl->display_dequeue(); }
+void TITUS_DLB_Context::display_Context()            { m_impl->display_Context(); }
 #endif
 // *********************************************************************
-// *************************** DLB_Logger ******************************
+// *************************** TITUS_DLB_Logger ******************************
 // *********************************************************************
 
-void DLB_Logger::print_current_session(std::ostream & out)const{
+int TITUS_DLB_Logger::get_some_metric() {
+    return m_impl->get_some_metric();
+}
+void TITUS_DLB_Logger::activate_some_metric() {
+    m_impl->activate_some_metric();
+}
+
+void TITUS_DLB_Logger::print_current_session(std::ostream & out)const{
     m_impl->print_current_session(out);
 }
-void DLB_Logger::print_agregated_session_info(std::ostream & out)const{
+void TITUS_DLB_Logger::print_agregated_session_info(std::ostream & out)const{
     m_impl->print_agregated_session_info(out);
 }
-void DLB_Logger::print_all_sessions(std::ostream & out)const{
+void TITUS_DLB_Logger::print_all_sessions(std::ostream & out)const{
     m_impl->print_all_sessions(out);
 }
 
-void DLB_Logger::dump_buffer() {
+void TITUS_DLB_Logger::dump_buffer() {
     m_impl->dump_buffer();
 }
-void DLB_Logger::print_buffer(std::ostream & out)const{
+void TITUS_DLB_Logger::print_buffer(std::ostream & out)const{
     m_impl->print_buffer(out);
 }
-void DLB_Logger::set_autodump(bool val, std::ostream & out) {
+void TITUS_DLB_Logger::set_autodump(bool val, std::ostream & out) {
     m_impl->set_autodump(val,out);
 }
-void DLB_Logger::set_autodump(bool val, const char *logdir){
+void TITUS_DLB_Logger::set_autodump(bool val, const char *logdir){
     m_impl->set_autodump(val,logdir);
 }
 

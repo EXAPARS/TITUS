@@ -16,22 +16,28 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <GASPI.h>
 #include <string.h>
 #include <assert.h>
 
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
-#include "dlb_logger.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
+#include "TITUS_DLB_logger.hpp"
 
 
-dlb_int DLB_impl::load_balancing()
+TITUS_DLB_int TITUS_DLB_impl::load_balancing()
 {
-    DEBUG_PRINT("=====================DLB::load_balancing==================\n");
+    DEBUG_PRINT("=====================TITUS_DLB::load_balancing==================\n");
     gaspi_rank_t target_rank;
     MetadataResult * r = context->get_metadata_result();
     
+    static bool first_theft = false;
+    if (first_theft == false){
+        first_theft = true;
+        TITUS_DBG << "first theft !" << std::endl;
+    }
     //assert that number of result is not greater than expected number of result
     if (r->nb_result > r->nb_usr_results){
 		TITUS_DBG << "ASSERT IS GOING TO FAIL : " << r->nb_result << " > " << r->nb_usr_results << std::endl; //TITUS_DBG.flush();
@@ -54,15 +60,20 @@ dlb_int DLB_impl::load_balancing()
     }
     if (target_rank == context->get_rank()) return(load_balancing()); // if target == self, retry
     
-    //uint64_t before_theft_attempt = rdtsc();
+    uint64_t before_theft_attempt = rdtsc();
     if (context->ptr_algorithm_function(target_rank) == SUCCESS) // blocking steal attempt
     {
+        static bool first_successful_theft = false;
+	if (first_successful_theft == false){
+            first_successful_theft = true;
+            TITUS_DBG << "first successful theft ! (target = " << target_rank << ")" << std::endl;
+        }
         return WORKER;
     }
-    //uint64_t after_theft_attempt = rdtsc();
-    //uint64_t sleeptime = 16 * (after_theft_attempt - before_theft_attempt) / (TITUS_PROC_FREQ/1000000); //! TODO : use logger data to retrieve theft attempt latency
-    //std::cerr << "failed theft attempt. sleeping for " << sleeptime << "us" << std::endl;
-    //usleep(sleeptime); //! TODO : is that a smart attempt to avoid network overload ? probably not ...
+    uint64_t after_theft_attempt = rdtsc();
+    //~ uint64_t sleeptime = 2 * (after_theft_attempt - before_theft_attempt) / (TITUS_PROC_FREQ/1000000);
+    //~ if (sleeptime > 10000) TITUS_DBG << "failed theft attempt. sleeping for " << sleeptime << "us" << std::endl;
+    //~ usleep(sleeptime); //! TODO : is that a smart attempt to avoid network overload ? probably not ...
     return THIEF;
 }
 
@@ -81,11 +92,14 @@ void * kill_me_later(void * _arg){
 	return nullptr;
 }
 
-void DLB_impl::parallel_work(uint64_t timeout_ms)
+void TITUS_DLB_impl::parallel_work(uint64_t timeout_ms)
 {
-    DEBUG_PRINT("=====================DLB::parallel_work====================\n");
-
-    dlb_int state;
+    DEBUG_PRINT("=====================TITUS_DLB::parallel_work====================\n");
+	if (context == nullptr){
+		TITUS_DBG << "TITUS_DLB_impl::parallel_work : ASSERT IS GOING TO FAIL : context is not set" << std::endl;
+		ASSERT(context != nullptr);
+	}
+    TITUS_DLB_int state;
     DEBUG_PRINT("context=%d\n",context);
     context->logger.signal_start_parallel_work_session();
     
@@ -118,7 +132,7 @@ void DLB_impl::parallel_work(uint64_t timeout_ms)
             case FINISHED:
 				if (timeout_ms != 0) pthread_kill(kill_me_later_args.killer_thread, SIGKILL);
                 context->logger.signal_end_parallel_work_session();
-                context->logger.signal_end_DLB_session();
+                context->logger.signal_end_TITUS_DLB_session();
                 context->reset();
                 
                 // tauto check

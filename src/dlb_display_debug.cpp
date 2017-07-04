@@ -16,16 +16,17 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <GASPI.h>
 #include <string.h>
 
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_logger.hpp"
-#include "dlb_context.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_logger.hpp"
+#include "TITUS_DLB_context.hpp"
 
 #ifdef DEBUG
 
-void DLB_Context_impl::display_state()
+void TITUS_DLB_Context_impl::display_state()
 {
     MetadataTask *m;
     m = get_metadata_task();
@@ -39,7 +40,7 @@ void DLB_Context_impl::display_state()
     return;
 }
 
-void DLB_Context_impl::display_metadatatask()
+void TITUS_DLB_Context_impl::display_metadatatask()
 {
     MetadataTask *m;
     m = get_metadata_task();
@@ -57,7 +58,7 @@ void DLB_Context_impl::display_metadatatask()
 }
 
 
-void DLB_Context_impl::display_metadataresult()
+void TITUS_DLB_Context_impl::display_metadataresult()
 {
     MetadataResult *r;
     r = get_metadata_result();
@@ -74,7 +75,7 @@ void DLB_Context_impl::display_metadataresult()
 }
 
 
-void DLB_Context_impl::display_metadatatmp()
+void TITUS_DLB_Context_impl::display_metadatatmp()
 {
     MetadataTmp *t;
     t = get_metadata_tmp();
@@ -90,7 +91,7 @@ void DLB_Context_impl::display_metadatatmp()
 }
 
 
-void DLB_Context_impl::display_dequeue()
+void TITUS_DLB_Context_impl::display_dequeue()
 {
     DEBUG_PRINT("========================DISPLAY Dequeue===========================\n");
     DEBUG_PRINT("owner_result_rank = %llu\n",       ptr_dequeue->owner_task_rank);
@@ -105,7 +106,7 @@ void DLB_Context_impl::display_dequeue()
 }
 
 
-void DLB_Context_impl::display_Context()
+void TITUS_DLB_Context_impl::display_Context()
 {
     DEBUG_PRINT("========================DISPLAY Dequeue===========================\n");
     DEBUG_PRINT("addr = %x\n",                              this);

@@ -108,8 +108,8 @@ def parse_traces(traces_dict, logfiles_paths) :
 					add_entry_to_traces(traces_dict, date, owner, first_task_id, nb_results, rank_emit, rank_recv,  "Results routing from segment")
 					results_routing_from_segment = results_routing_from_segment + 1
 					
-				elif tmp.startswith("DLB_Context_impl::submit_results") :
-# 00005.48300303 [rank 23] : DLB_Context_impl::submit_results : submitted 554 results, starting with id 1170
+				elif tmp.startswith("TITUS_DLB_Context_impl::submit_results") :
+# 00005.48300303 [rank 23] : TITUS_DLB_Context_impl::submit_results : submitted 554 results, starting with id 1170
 					first_task_id = int(line.split("id ")[1].strip())
 					nb_results = int(line.split("submitted ")[1].split()[0].strip())
 					data_size = 0
@@ -153,7 +153,7 @@ def parse_traces(traces_dict, logfiles_paths) :
 		print ("\r" + "results_production=" + str(results_production) + ", results_returned=" + str(results_returned) + ", results_routing_from_segment=" + str(results_routing_from_segment))
 	print("\n")
 # TODO :
-# 00013.34885413 [rank 23] : DLB_impl::work_stealing > 14 task stolen from rank 20 end_task_id=169454
+# 00013.34885413 [rank 23] : TITUS_DLB_impl::work_stealing > 14 task stolen from rank 20 end_task_id=169454
 
 fields_count = 0
 

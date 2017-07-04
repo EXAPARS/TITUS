@@ -46,7 +46,7 @@ d_reg_neighboring_generator::d_reg_neighboring_generator(size_t nb_rank, size_t 
 	half_edges = new DVS_RANK_TYPE[nb_rank * degree];
 	neighbors = new DVS_RANK_TYPE[nb_rank * degree];
 	// init tables
-	for (size_t i=0;i<degree*nb_rank;i++){
+	for (size_t i=0;i<degree*nb_rank;i++){ // numberr all half edges. half edge n° i belongs is the i%d th half-edge of the I/d th rank
 		neighbors[i] = (DVS_RANK_TYPE)-1;
 		half_edges[i] = i;
 	}
@@ -65,10 +65,81 @@ void d_reg_neighboring_generator::add_all_neighbors_from_tree(){
 }
 
 void d_reg_neighboring_generator::add_random_neighbors(){
+	// randomly flush the half edges table
+	for (uint i = 0 ; i < available_half_edges ; i++){
+		// swap half edge i with another random one
+		uint target = rand() % (available_half_edges - 1);
+		target = target >= i ? target : target + 1;
+		swap(half_edges + i, half_edges + target);
+	}
+	
 	while(available_half_edges > 1){
 		add_random_neighbor();
 	}
+	
+	
 	rebuild_neighbors_from_half_edges();
+	
+	std::cout << *this << std::endl;
+	
+	// make it a "real" d-regular (no self-connections, no parallel edges) :
+	// for each self-connecting edge
+	for (DVS_RANK_TYPE i = 0 ; i < nb_rank * degree; i ++){
+		if (neighbors[i] == i/degree){ // found a self-connecting edge
+			DVS_RANK_TYPE a = i;
+			// look the rest of the neighbors to find the other half-edge
+			DVS_RANK_TYPE b; for (uint j = 1 ; j < degree - i%degree ; j++) if (neighbors[i+j] == i/degree) {b = i+j ; break;}
+			
+			std::cout << "i = " << i << "found self-connecting edge (" << i/degree << ")" << std::endl;
+			// randomly find another edge that does not connect two nodes that are already connected to the current one
+			DVS_RANK_TYPE test;
+			do{
+				std::cout << ".";
+				test = rand()%(nb_rank * degree);
+			}while ( a/degree==test/degree || are_neighbors(a/degree,test/degree) || are_neighbors(a/degree, neighbors[test]) );
+			DVS_RANK_TYPE c = test;
+			DVS_RANK_TYPE d; for (DVS_RANK_TYPE j = neighbors[test]*degree ; j < neighbors[test+1]*degree || true ; j++) if (j != test && neighbors[j] == test/degree) {d = j ; break;}
+			
+			// swap edges : a-b c-d -> a-c b-d
+			std::cout << "  swaping with (" << c/degree << "-" << d/degree << ")" << std::endl;
+			neighbors[a] = c/degree;
+			neighbors[b] = d/degree;
+			neighbors[c] = a/degree;
+			neighbors[d] = b/degree;
+		}
+	}
+	// for each parallel edge
+	for (DVS_RANK_TYPE n=0 ; n<nb_rank ; n++){
+		for (uint i=0 ; i<degree ; i++){
+			DVS_RANK_TYPE A = n * degree + i;
+			for (uint j=i+1 ; j < degree ; j++){
+				DVS_RANK_TYPE B = n * degree + j;
+				if (neighbors[A] == neighbors[B]){ // found A & B are parallel half-edges
+					DVS_RANK_TYPE a = A;
+					// find the other end of A
+					DVS_RANK_TYPE b; for (uint j = neighbors[A]*degree ; j < (neighbors[A]+1)*degree ; j++) if (neighbors[j] == A/degree) {b = j ; break;}
+
+					std::cout << "i = " << i << "found parallel edges (" << A/degree << " - " << neighbors[A] << ")" << std::endl;
+					// => A/degree == B/degree && neighbors[A]/degree == neighbors[B]/degree
+					// randomly find another edge that does not connect two nodes already connected to any end of the parallel edges
+					uint test;
+					do{
+						std::cout << ".";
+						test = rand()%(nb_rank * degree);
+					}while ( a/degree==test/degree || are_neighbors(a/degree,test/degree) || are_neighbors(neighbors[a], neighbors[test]) );
+					// swap edges : a-b c-d -> a-c b-d
+					DVS_RANK_TYPE c = test;
+					DVS_RANK_TYPE d; for (uint j = neighbors[test]*degree ; j<(neighbors[test]+1)*degree ; j++) if (j != test && neighbors[j] == test/degree) {d = j ; break;}
+					std::cout << "  swaping with (" << c/degree << "-" << d/degree << ")" << std::endl;
+					neighbors[a] = c/degree;
+					neighbors[b] = d/degree;
+					neighbors[c] = a/degree;
+					neighbors[d] = b/degree;
+				}
+			}
+		}
+	}
+	
 }
 
 // **********************
@@ -78,7 +149,7 @@ void d_reg_neighboring_generator::add_random_neighbors(){
 void d_reg_neighboring_generator::print(std::ostream & out)const{
 	for (size_t i=0;i<nb_rank;i++){
 		out << "rank" << i << ":";
-		for (size_t j = 0; j<degree; j++){
+		for (size_t j = 0; j< degree; j++){
 			out << "[" << neighbors[i*degree+j] << "] ";
 		}
 		out << std::endl;
@@ -94,7 +165,11 @@ void d_reg_neighboring_generator::print_paired_half_edges(std::ostream & out)con
 }
 
 void d_reg_neighboring_generator::add_random_neighbor(){
-	DVS_RANK_TYPE * p_half_edge_a = half_edges + degree * nb_rank - available_half_edges --;
+	// connect first available half edge to another random one
+	// select first available half edge, mark it used.
+	DVS_RANK_TYPE * p_half_edge_a = half_edges + degree * nb_rank - available_half_edges;
+	available_half_edges --;
+	// among the rest, draw one
 	DVS_RANK_TYPE * p_half_edge_b = p_half_edge_a + (rand() % available_half_edges) + 1;
 	swap(p_half_edge_a + 1 , p_half_edge_b);
 	available_half_edges --;
@@ -289,13 +364,13 @@ size_t d1_kleinberg_neighboring_generator::get_neighbors_count(DVS_RANK_TYPE ran
 DVS_RANK_TYPE d1_kleinberg_neighboring_generator::get_neighbor(DVS_RANK_TYPE rank, size_t index)const{
 	assert(rank < nb_rank);
 	assert(index < neighbors[rank].size());
-	//! TODO : optimize : copy neighbors in an array for index based access. might not be worth the effort.
+	//! TODO : optimize : copy neighbors in an array for index based access
 	auto it = neighbors[rank].begin();
 	for (size_t i = 0 ; i < index ; i ++) it ++;
 	return *it;
 }
 
-size_t d1_kleinberg_neighboring_generator::are_neighbors(DVS_RANK_TYPE a, DVS_RANK_TYPE b)const{
+bool d1_kleinberg_neighboring_generator::are_neighbors(DVS_RANK_TYPE a, DVS_RANK_TYPE b)const{
 	return (neighbors[a].find(b) != neighbors[a].end());
 }
 

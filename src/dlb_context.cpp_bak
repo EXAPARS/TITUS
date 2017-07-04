@@ -23,9 +23,9 @@
 #include <iomanip>
 #include <algorithm>
 
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
 
 
 /**
@@ -40,7 +40,7 @@
  * @param result_size : File containing the coordinates
  * @param ptr_task_function : File containing the coordinates
  * @param shared_task_segment_size : File containing the coordinates
- * @param algorithm : load balancing algorithm used DLB::WORK_REQUESTING or DLB::WORK_STEALING
+ * @param algorithm : load balancing algorithm used TITUS_DLB::WORK_REQUESTING or TITUS_DLB::WORK_STEALING
  * 
  */
 
@@ -53,61 +53,61 @@
 
 
 // DEFAULT CONSTRUCTOR
-DLB_Context_impl::DLB_Context_impl():
+TITUS_DLB_Context_impl::TITUS_DLB_Context_impl():
     registrations_status(nullptr), id(context_count++), logger(this), DVS_context(nullptr), ptr_dequeue(nullptr),
-    algorithm(DLB_DEFAULT_ALGORITHM),
+    algorithm(TITUS_DLB_DEFAULT_ALGORITHM),
     shared_task_segment_size(10000),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),// implicit cast from signed to unsigned
     ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
 {
-    dlb_init_context();
+    TITUS_DLB_init_context();
     assert(check_status());
     //default : from default config file (if env var is set) or default config
     //! TODO : get config filename from env
     //SUCCESS_OR_DIE( gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
-    DVS_context = new DVS_Context(new DLB_Context(this));
+    DVS_context = new DVS_Context(new TITUS_DLB_Context(this));
 }
 
 // SIMPLE CONSTRUCTOR
-DLB_Context_impl::DLB_Context_impl(int shared_task_segment_size, int algorithm):
+TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(int shared_task_segment_size, int algorithm):
     registrations_status(nullptr), id(context_count++), logger(this), DVS_context(nullptr), ptr_dequeue(nullptr),
     algorithm(algorithm), shared_task_segment_size(shared_task_segment_size),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),// implicit cast from signed to unsigned
     ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
 {
-    dlb_init_context();
+    TITUS_DLB_init_context();
     assert(check_status());
-    DVS_context = new DVS_Context(new DLB_Context(this));
+    DVS_context = new DVS_Context(new TITUS_DLB_Context(this));
 }
 
 // FROM CONFIG FILE CONSTRUCTOR
-DLB_Context_impl::DLB_Context_impl(const char * config_file_name):
+TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(const char * config_file_name):
     registrations_status(nullptr), id(context_count++), logger(this), DVS_context(nullptr), ptr_dequeue(nullptr),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),// implicit cast from signed to unsigned
     ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
 {
-    dlb_init_context();
+    TITUS_DLB_init_context();
     assert(check_status());
-    DVS_context = new DVS_Context(new DLB_Context(this));
+    DVS_context = new DVS_Context(new TITUS_DLB_Context(this));
 }
 
 // CLONE CONTEXT CONSTRUCTOR
-DLB_Context_impl::DLB_Context_impl(const DLB_Context_impl & arg):
+TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(const TITUS_DLB_Context_impl & arg):
     registrations_status(nullptr), id(context_count++), logger(this), DVS_context(nullptr), ptr_dequeue(nullptr),
 	algorithm(arg.algorithm), shared_task_segment_size(arg.shared_task_segment_size),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),// implicit cast from signed to unsigned
     ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
 {
-    dlb_init_context();
+    TITUS_DLB_init_context();
     assert(check_status());
-    DVS_context = new DVS_Context(new DLB_Context(this));
+    DVS_context = new DVS_Context(new TITUS_DLB_Context(this));
 }
 
-DLB_Context_impl::~DLB_Context_impl() {
+TITUS_DLB_Context_impl::~TITUS_DLB_Context_impl() {
 	if ( registrations_status != nullptr )  delete(registrations_status);
 	// explicitely call destructor of segment metadata (because they were contructed using placement new)
     if ( get_metadata_task()   != nullptr ) get_metadata_task()   -> ~MetadataTask();
@@ -121,10 +121,10 @@ DLB_Context_impl::~DLB_Context_impl() {
 	if ( segment_tmp     != -1 ) gaspi_segment_delete(segment_tmp);
 	if ( segment_scratch != -1 ) gaspi_segment_delete(segment_scratch);
 	
-	delete(DVS_context); //! TODO : allow DVS contexts to be std::moved : one may want to keep the DVS_Context while deleting the DLB_Context
+	delete(DVS_context); //! TODO : allow DVS contexts to be std::moved : one may want to keep the DVS_Context while deleting the TITUS_DLB_Context
 }
 
-size_t DLB_Context_impl::context_count = 0;
+size_t TITUS_DLB_Context_impl::context_count = 0;
 
 
 // *********************************************************************
@@ -132,13 +132,13 @@ size_t DLB_Context_impl::context_count = 0;
 // *********************************************************************
 
 
-void DLB_Context_impl::reset() { // resets all states and forgets about any task
+void TITUS_DLB_Context_impl::reset() { // resets all states and forgets about any task
     get_metadata_task()->reset();
     get_metadata_result()->reset(get_rank(),get_nb_ranks());
 }
 
 //! TODO : move to communication layer manager
-void DLB_Context_impl::register_to_rank(gaspi_rank_t arg) {
+void TITUS_DLB_Context_impl::register_to_rank(gaspi_rank_t arg) {
     //std::cout << "rank " << get_rank() << " : register_to_rank(" << arg << ")" << std::endl;
     
     
@@ -151,14 +151,14 @@ void DLB_Context_impl::register_to_rank(gaspi_rank_t arg) {
 
     if (gaspi_config_build_infrastructure != GASPI_TOPOLOGY_DYNAMIC){
 		gaspi_connect(arg,GASPI_BLOCK);
-		SUCCESS_OR_DIE( gaspi_segment_register( segment_task,   arg, DLB_GASPI_TIMEOUT));
-		SUCCESS_OR_DIE( gaspi_segment_register( segment_result, arg, DLB_GASPI_TIMEOUT));
-		SUCCESS_OR_DIE( gaspi_segment_register( segment_tmp,    arg, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE( gaspi_segment_register( segment_task,   arg, TITUS_DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE( gaspi_segment_register( segment_result, arg, TITUS_DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE( gaspi_segment_register( segment_tmp,    arg, TITUS_DLB_GASPI_TIMEOUT));
     }
  
     registrations_status[arg] = true;
 }
-void DLB_Context_impl::open_segment_to_thieves(gaspi_segment_id_t arg) {
+void TITUS_DLB_Context_impl::open_segment_to_thieves(gaspi_segment_id_t arg) {
     // check that segment exists
     if (gaspi_config_build_infrastructure != GASPI_TOPOLOGY_NONE) return;
     gaspi_pointer_t tmp;
@@ -176,7 +176,7 @@ void DLB_Context_impl::open_segment_to_thieves(gaspi_segment_id_t arg) {
     //~ TITUS_DBG << msg.str() << std::endl; //TITUS_DBG.flush();
 }
 
-void DLB_Context_impl::print_registration_status(std::ostream & out) {
+void TITUS_DLB_Context_impl::print_registration_status(std::ostream & out) {
     assert(registrations_status != nullptr);
     
     out << "rank " << get_rank() << " :";
@@ -188,7 +188,7 @@ void DLB_Context_impl::print_registration_status(std::ostream & out) {
     out << std::endl;
 }
 
-bool DLB_Context_impl::check_status() {
+bool TITUS_DLB_Context_impl::check_status() {
     bool flag = true;
     gaspi_state_vector_t vec = (gaspi_state_vector_t) malloc(get_nb_ranks() * sizeof(char)); ASSERT(vec != nullptr);
     gaspi_state_vec_get(vec);
@@ -210,7 +210,7 @@ bool DLB_Context_impl::check_status() {
 // ************************** CORE FEATURES ****************************
 // *********************************************************************
 
-void DLB_Context_impl::dlb_init_segment(gaspi_segment_id_t segment_id, void ** local_mem_ptr, gaspi_size_t segment_size, bool use_simple_alloc){
+void TITUS_DLB_Context_impl::TITUS_DLB_init_segment(gaspi_segment_id_t segment_id, void ** local_mem_ptr, gaspi_size_t segment_size, bool use_simple_alloc){
     logger.signal_start_segment_init();
 
     if (use_simple_alloc)
@@ -222,16 +222,16 @@ void DLB_Context_impl::dlb_init_segment(gaspi_segment_id_t segment_id, void ** l
     logger.signal_end_segment_init();
 }
 
-static dlb_sig_handler dummy_sig_handler;
+static TITUS_DLB_sig_handler dummy_sig_handler;
 
-void DLB_Context_impl::dlb_init_context() { //shared_task_segment_size
-    //dlb_sig_handler dummy;
+void TITUS_DLB_Context_impl::TITUS_DLB_init_context() { //shared_task_segment_size
+    //TITUS_DLB_sig_handler dummy;
     //ASSERT(dummy_sig_handler.is_init());
-	//std::cout << "DLB_Context_impl::dlb_init_context : self tid = " << pthread_self() << std::endl;
+	//std::cout << "TITUS_DLB_Context_impl::TITUS_DLB_init_context : self tid = " << pthread_self() << std::endl;
 	TITUS_DBG << "TITUS_PROC_FREQ = " << TITUS_PROC_FREQ << std::endl; TITUS_DBG.flush();
-    logger.signal_start_DLB_session(); // creating a session for logging context init time
+    logger.signal_start_TITUS_DLB_session(); // creating a session for logging context init time
     
-    DEBUG_PRINT("=====================DLB::init_library=====================\n");
+    DEBUG_PRINT("=====================TITUS_DLB::init_library=====================\n");
     
     gaspi_config_t config;
     SUCCESS_OR_DIE(gaspi_config_get(&config));
@@ -272,8 +272,8 @@ void DLB_Context_impl::dlb_init_context() { //shared_task_segment_size
     // Initialization GASPI structure for communication
     //----------------------------------------------------------------------------------------------------------
     
-    if(algorithm == DLB::WORK_STEALING)          this->ptr_algorithm_function = DLB_impl::work_stealing;
-    else if(algorithm == DLB::WORK_REQUESTING)   this->ptr_algorithm_function = DLB_impl::work_requesting;
+    if(algorithm == TITUS_DLB::WORK_STEALING)          this->ptr_algorithm_function = TITUS_DLB_impl::work_stealing;
+    else if(algorithm == TITUS_DLB::WORK_REQUESTING)   this->ptr_algorithm_function = TITUS_DLB_impl::work_requesting;
     
     this->shared_task_segment_size       = (gaspi_size_t) shared_task_segment_size;
     
@@ -292,7 +292,7 @@ void DLB_Context_impl::dlb_init_context() { //shared_task_segment_size
     this->ptr_segment_tmp                = NULL;
     
     
-    dlb_init_segment(segment_task, &ptr_segment_task, shared_task_segment_size, gaspi_config_build_infrastructure == GASPI_TOPOLOGY_NONE);
+    TITUS_DLB_init_segment(segment_task, &ptr_segment_task, shared_task_segment_size, gaspi_config_build_infrastructure == GASPI_TOPOLOGY_NONE);
     new (ptr_segment_task) MetadataTask(this->shared_task_segment_size, segment_task);
     
     
@@ -301,17 +301,17 @@ void DLB_Context_impl::dlb_init_context() { //shared_task_segment_size
     for (gaspi_rank_t i = 0 ; i < get_nb_ranks() ; i++) registrations_status[i] = false;//! TODO : move to communication layer manager
     registrations_status[get_rank()] = true;
     
-    SUCCESS_OR_DIE( DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
+    SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
     if (get_rank() == 0) std::cout << " ---------------- CONTEXT INIT DONE ON ALL RANKS  ---------------- " << std::endl;
     
-    logger.signal_end_DLB_session();
+    logger.signal_end_TITUS_DLB_session();
     
 }
 
 
-void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_task, void *result, size_t result_size, void (*ptr_task_function)(void*, void*, void*), void * ptr_task_params)
+void TITUS_DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_task, void *result, size_t result_size, void (*ptr_task_function)(void*, void*, void*), void * ptr_task_params)
 {
-    TITUS_DBG << "DLB_Context_impl::set_problem(void *problem=" << problem << ", int task_size=" << task_size << ", int nb_task=" << nb_task << ", void *result=" << result << ", int result_size=" << result_size << ", void (*ptr_task_function)(void*, void*, void*)=" << ptr_task_function << ", void * ptr_task_params=" << ptr_task_params << ");" << std::endl; TITUS_DBG.flush();
+    TITUS_DBG << "TITUS_DLB_Context_impl::set_problem(void *problem=" << problem << ", int task_size=" << task_size << ", int nb_task=" << nb_task << ", void *result=" << result << ", int result_size=" << result_size << ", void (*ptr_task_function)(void*, void*, void*)=" << ptr_task_function << ", void * ptr_task_params=" << ptr_task_params << ");" << std::endl; TITUS_DBG.flush();
 	if (nb_task > 0){
 		ASSERT(problem != nullptr);
 		ASSERT(result != nullptr);
@@ -319,7 +319,7 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
 	ASSERT(task_size > 0);
 	ASSERT(result_size > 0);
 	
-    logger.signal_start_DLB_session();
+    logger.signal_start_TITUS_DLB_session();
 
     int first = 1;
     if(this->shared_result_segment_size == 0)    first = 0;
@@ -327,7 +327,7 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
     //reallocation si la taille allouer est trop petite
     if(task_size*nb_task > this->ptr_dequeue->problem_size_allocated)
     {
-        TITUS_DBG << "WARNING : DLB_Context_impl::set_problem : dequeue reallocation : " << this->ptr_dequeue->problem_size_allocated << " -> " << task_size*nb_task << " bytes" << std::endl; TITUS_DBG.flush();
+        TITUS_DBG << "WARNING : TITUS_DLB_Context_impl::set_problem : dequeue reallocation : " << this->ptr_dequeue->problem_size_allocated << " -> " << task_size*nb_task << " bytes" << std::endl; TITUS_DBG.flush();
         this->ptr_dequeue->problem_size_allocated = task_size*nb_task;
         this->ptr_dequeue->problem   = (void *) realloc(this->ptr_dequeue->problem, task_size*nb_task);
         ASSERT(this->ptr_dequeue->problem != nullptr);
@@ -345,7 +345,7 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
     }
 
     //copie du probleme dans notre librarie
-    TITUS_DBG << "DLB_Context_impl::set_problem : copying problem to dequeue : memcpy(" << this->ptr_dequeue->problem << ", " << problem << ", " << (size_t)task_size*nb_task << ");" << std::endl; TITUS_DBG.flush();
+    TITUS_DBG << "TITUS_DLB_Context_impl::set_problem : copying problem to dequeue : memcpy(" << this->ptr_dequeue->problem << ", " << problem << ", " << (size_t)task_size*nb_task << ");" << std::endl; TITUS_DBG.flush();
     memcpy(this->ptr_dequeue->problem, problem, (size_t)task_size*nb_task);
     TITUS_DBG << "copy completed"; TITUS_DBG.flush();
 
@@ -361,10 +361,10 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
         this->shared_scratch_segment_size      = std::max(shared_result_segment_size,shared_tmp_result_segment_size);
 
         uint64_t start = rdtsc();
-        dlb_init_segment(segment_result,      &ptr_segment_result,      shared_result_segment_size,        !gaspi_config_build_infrastructure);
-        dlb_init_segment(segment_tmp,         &ptr_segment_tmp,         shared_tmp_result_segment_size,    !gaspi_config_build_infrastructure);
-		dlb_init_segment(segment_scratch, 	  &ptr_segment_scratch,     shared_scratch_segment_size,       !gaspi_config_build_infrastructure);
-        TITUS_DBG << "DLB_Context_impl::set_problem : segments init done (" << (start - rdtsc()) / (TITUS_PROC_FREQ/1000) << " ms)" << std::endl; TITUS_DBG.flush();
+        TITUS_DLB_init_segment(segment_result,      &ptr_segment_result,      shared_result_segment_size,        !gaspi_config_build_infrastructure);
+        TITUS_DLB_init_segment(segment_tmp,         &ptr_segment_tmp,         shared_tmp_result_segment_size,    !gaspi_config_build_infrastructure);
+		TITUS_DLB_init_segment(segment_scratch, 	  &ptr_segment_scratch,     shared_scratch_segment_size,       !gaspi_config_build_infrastructure);
+        TITUS_DBG << "TITUS_DLB_Context_impl::set_problem : segments init done (" << (start - rdtsc()) / (TITUS_PROC_FREQ/1000) << " ms)" << std::endl; TITUS_DBG.flush();
     }
     
     logger.signal_start_problem_init();
@@ -382,7 +382,7 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
     
     this->ptr_dequeue->end_task_id        = nb_task;           // first task_id is 1 (id = 0 is reserved for init)
     this->ptr_dequeue->task_size          = task_size;
-    this->ptr_dequeue->result_size        = (dlb_int) result_size;
+    this->ptr_dequeue->result_size        = (TITUS_DLB_int) result_size;
     this->ptr_dequeue->ptr_task_function  = ptr_task_function;
     this->ptr_dequeue->ptr_task_params    = ptr_task_params;
 
@@ -399,13 +399,13 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
     
     //verify if the size of segment_tmp is enough big
     assert( this->shared_tmp_result_segment_size >= (result_size + sizeof(MetadataTmp)) );
-    assert( (dlb_int)this->shared_task_segment_size >= (dlb_int)(task_size + sizeof(MetadataTask)) );
+    assert( (TITUS_DLB_int)this->shared_task_segment_size >= (TITUS_DLB_int)(task_size + sizeof(MetadataTask)) );
     
     logger.signal_end_problem_init();
     logger.signal_tasks_spawned(nb_task);
     
 		
-    SUCCESS_OR_DIE( DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
+    SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
     if (get_rank() == 0) std::cout << " ---------------- PROBLEM SET ON ALL RANKS ----------------" << std::endl;
     
     //assert(check_status()); // aucun sens hors du mode random
@@ -438,7 +438,7 @@ void DLB_Context_impl::set_problem(void *problem, size_t task_size, size_t nb_ta
 }
 
 
-void DLB_Context_impl::submit_results(void * start, size_t nb_results, dlb_int first_task_id) {
+void TITUS_DLB_Context_impl::submit_results(void * start, size_t nb_results, TITUS_DLB_int first_task_id) {
     void * user_results_start = get_metadata_result()->usr_results;
     size_t result_size = get_metadata_result()->result_size;
     
@@ -446,9 +446,9 @@ void DLB_Context_impl::submit_results(void * start, size_t nb_results, dlb_int f
     void * copy_dest = ADD_PTR(user_results_start, user_results_offset);
     size_t copy_size = nb_results * result_size;
     
-   	//TITUS_DBG << "DLB_Context_impl::submit_results : submitted " << nb_results << " results, starting with id " << first_task_id << std::endl;
+   	//TITUS_DBG << "TITUS_DLB_Context_impl::submit_results : submitted " << nb_results << " results, starting with id " << first_task_id << std::endl;
 
-    //TITUS_DBG << "DLB_Context_impl::submit_results(start=" << start << ", nb_resut=" << nb_results << ", first_task_id=" << first_task_id << ")" << std::endl
+    //TITUS_DBG << "TITUS_DLB_Context_impl::submit_results(start=" << start << ", nb_resut=" << nb_results << ", first_task_id=" << first_task_id << ")" << std::endl
 	//			<< "> memcpy(dest=" << copy_dest << ", src=" << start << ", size=" << copy_size << ")" << std::endl; //TITUS_DBG.flush();
     memcpy(copy_dest, start , copy_size);
     get_metadata_result()->nb_result += nb_results;
@@ -460,24 +460,24 @@ void DLB_Context_impl::submit_results(void * start, size_t nb_results, dlb_int f
     ASSERT(get_metadata_result()->nb_result <= get_metadata_result()->nb_usr_results);
 }
 
-void DLB_Context_impl::submit_results(BufferElt * arg){
+void TITUS_DLB_Context_impl::submit_results(BufferElt * arg){
     submit_results(ADD_PTR(arg , sizeof(BufferElt)), arg->nb_result, arg->first_task_id);
 }
 
 
-void DLB_Context_impl::push_results_buffer(){
+void TITUS_DLB_Context_impl::push_results_buffer(){
 	get_metadata_result()->try_flush_buffer_elts_packed();
 }
 
 
 
-std::ostream & operator << (std::ostream & out , const DLB_Context_impl & arg){
+std::ostream & operator << (std::ostream & out , const TITUS_DLB_Context_impl & arg){
 	arg.print_state(out);
 	return out;
 }
 
-void DLB_Context_impl::print_state(std::ostream & out)const{
-	out << "DLB_Context_impl : " << std::endl;
+void TITUS_DLB_Context_impl::print_state(std::ostream & out)const{
+	out << "TITUS_DLB_Context_impl : " << std::endl;
     out << "  ";
     out << "shared_task_segment_size = " << shared_task_segment_size << ", ";
     out << "shared_result_segment_size = " << shared_result_segment_size << ", ";

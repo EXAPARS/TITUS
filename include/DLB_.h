@@ -17,36 +17,36 @@
 */
 
 
-#ifndef __DLB__H__
-#define __DLB__H__
+#ifndef __c_TITUS_DLB__H__
+#define __c_TITUS_DLB__H__
 
 extern "C"
 {
-    // DLB :
-    void gaspi_return_t dlb_gaspi_proc_init_(gaspi_timeout_t timeout);// utility wrapper to gaspi_proc_init()
-    void dlb_set_nb_queues_(int * arg);// has no effect if called after dlb_gaspi_proc_init_()
-    void dlb_parallel_work_();// cannot be called before dlb_new_context_()
+    // TITUS_DLB :
+    gaspi_return_t c_TITUS_DLB_gaspi_proc_init(gaspi_timeout_t timeout);// utility wrapper to gaspi_proc_init()
+    void c_TITUS_DLB_parallel_work();// cannot be called before c_TITUS_DLB_new_context()
 
-    // DLB_CONTEXT : 
-    void dlb_set_context_(void* arg);// cannot be called before dlb_new_context_()
-    void dlb_get_context_(void **ret_val);// cannot be called before dlb_set_context_()
-    void dlb_new_context_(void **ret_val, int *shared_task_segment_size, int *algorithm);// cannot be called before gaspi_proc_init()
-    void dlb_set_problem_(void *context, void *problem, int *task_size, int *nb_task, void *result, int *result_size, void *ptr_task_function, void *params);// cannot be called before dlb_set_context_()
-    void dlb_get_logger_(void **ret_val, void *context);// cannot be called before gaspi_proc_init()
+    // c_TITUS_DLB_CONTEXT : 
+    void c_TITUS_DLB_set_context(void* arg);// cannot be called before c_TITUS_DLB_new_context()
+    void c_TITUS_DLB_get_context(void **ret_val);// cannot be called before c_TITUS_DLB_set_context()
+    void c_TITUS_DLB_new_context(void **ret_val, int shared_task_segment_size, int algorithm);// cannot be called before gaspi_proc_init()
+    void c_TITUS_DLB_delete_context(void *context );
+    void c_TITUS_DLB_set_problem(void *context, void *problem, int task_size, int nb_task, void *result, int result_size, void *ptr_task_function, void *params);// cannot be called before c_TITUS_DLB_set_context()
+    void c_TITUS_DLB_get_logger(void **ret_val, void *context);// cannot be called before gaspi_proc_init()
 	
-	// DLB_LOGGER :
-    void dlb_print_current_session_(void *logger, char *filename, int *verbose);// cannot be called before dlb_set_problem_()
-    void dlb_print_agregated_session_info_(void *logger, char *filename, int *verbose);// cannot be called before dlb_set_problem_()
-    void dlb_print_all_sessions_(void *logger, char *filename, int *verbose);// cannot be called before dlb_set_problem_()
+	// c_TITUS_DLB_LOGGER :
+    void c_TITUS_DLB_print_current_session(void *logger, char *filename);// cannot be called before c_TITUS_DLB_set_problem()
+    void c_TITUS_DLB_print_agregated_session_info(void *logger, char *filename);// cannot be called before c_TITUS_DLB_set_problem()
+    void c_TITUS_DLB_print_all_sessions(void *logger, char *filename);// cannot be called before c_TITUS_DLB_set_problem()
 
-    void dlb_dump_buffer_(void *logger);// cannot be called before dlb_set_problem_()
-    void dlb_print_buffer_(void *logger, char *filename);// cannot be called before dlb_set_problem_()
-    void dlb_set_autodump_(void *logger, int *val, char *logdir);// cannot be called before dlb_set_context_()
+    void c_TITUS_DLB_dump_buffer(void *logger);// cannot be called before c_TITUS_DLB_set_problem()
+    void c_TITUS_DLB_print_buffer(void *logger, char *filename);// cannot be called before c_TITUS_DLB_set_problem()
+    void c_TITUS_DLB_set_autodump(void *logger, int *val, char *logdir);// cannot be called before c_TITUS_DLB_set_context()
 
 	// DVS
 	
-    void dlb_get_DVS_context_(void **ret_val, void *context);// cannot be called before dlb_set_context_()
-    void dlb_set_DVS_context_(void *context, void *arg);// cannot be called before dlb_set_context_()
+    void c_TITUS_DLB_get_DVS_context(void **ret_val, void *context);// cannot be called before c_TITUS_DLB_set_context()
+    void c_TITUS_DLB_set_DVS_context(void *context, void *arg);// cannot be called before c_TITUS_DLB_set_context()
 }
 
 #endif

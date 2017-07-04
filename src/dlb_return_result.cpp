@@ -16,23 +16,25 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <GASPI.h>
 #include <string.h>
 
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
 #include <sstream>
 
 
-void DLB_impl::return_result() {
+void TITUS_DLB_impl::return_result() {
     //return_result_simple();
     return_results_buffered();
 }
 
 // returns results in the tmp segment into the results segment of the destination selected by DVS as the next in the route to the owner of the tasks that generated those results.
-void DLB_impl::return_results_buffered() {
+void TITUS_DLB_impl::return_results_buffered() {
 	get_context()->get_logger()->signal_start_return_results();
+	//~ TITUS_DBG << "in TITUS_DLB_impl::return_results_buffered" << std::endl;
 
 	//get_context()->get_metadata_result()->try_push_local_transiting_results();
 	
@@ -52,7 +54,7 @@ void DLB_impl::return_results_buffered() {
 	get_context()->get_logger()->signal_end_return_results();
 }
 
-// fully connected mode : requires to be able to communicate to any rank.
+
 // returns results in the tmp segment to the owner of the tasks that generated them.
 // results are written remotely at their final place in the result segment of their owner.
 // adress is calculated with last_result_id and nb_result fields of the MetadataTmp of the current context.
@@ -60,11 +62,13 @@ void DLB_impl::return_results_buffered() {
 // requires same results size and known number of initial tasks per rank
 // does not support task spawning.
 // does not support results routing through small world neighboring.
-void DLB_impl::return_result_simple()
+void TITUS_DLB_impl::return_result_simple()
 {
-    dlb_int t1, t2;
 	get_context()->get_logger()->signal_start_return_results();
-    //DEBUG_PRINT("=====================DLB::return_result====================\n");
+
+    TITUS_DLB_int t1, t2;
+    t1 = rdtsc(); //! TODO : add signal
+    //DEBUG_PRINT("=====================TITUS_DLB::return_result====================\n");
     MetadataTmp *t;
     t = context->get_metadata_tmp();
     gaspi_atomic_value_t value_old;
@@ -78,11 +82,17 @@ void DLB_impl::return_result_simple()
     }
     else
     {
-        SUCCESS_OR_DIE(gaspi_write(context->segment_tmp, context->shared_tmp_result_segment_size-(t->result_size*t->nb_result), t->owner_result_rank, context->segment_result, ((t->last_result_id-t->nb_result)*t->result_size+sizeof(MetadataResult)), (gaspi_size_t)(t->nb_result*t->result_size), context->queue_result, DLB_GASPI_TIMEOUT ));
-        SUCCESS_OR_DIE(gaspi_wait(context->queue_result, DLB_GASPI_TIMEOUT)); // How can we optimize out this waiting time with overlaping ? (flip-flop buffer ...)
+        SUCCESS_OR_DIE(gaspi_write(context->segment_tmp, context->shared_tmp_result_segment_size-(t->result_size*t->nb_result), t->owner_result_rank, context->segment_result, ((t->last_result_id-t->nb_result)*t->result_size+sizeof(MetadataResult)), (gaspi_size_t)(t->nb_result*t->result_size), context->queue_result, TITUS_DLB_GASPI_TIMEOUT ));
+        //DEBUG_PRINT("gaspi_write (seg_src[%llu], off[%llu], rank[%llu], seg_dest[%llu], off[%llu], size[%llu]...))\n",context->segment_tmp, context->shared_tmp_result_segment_size-(t->result_size*t->nb_result), t->owner_result_rank, context->segment_result, ((t->last_result_id-t->nb_result)*t->result_size+sizeof(MetadataResult)),(TITUS_DLB_int)t->nb_result*t->result_size);
+        SUCCESS_OR_DIE(gaspi_wait(context->queue_result, TITUS_DLB_GASPI_TIMEOUT)); //We can cover this wait by compute with a doubled tmp buffer
+        //DEBUG_PRINT("t->result_size=%d t->nb_result=%d MetadataTmp %d MetadataResult %d\n",t->result_size ,t->nb_result, sizeof(MetadataTmp), sizeof(MetadataResult));
     }
-    SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, 0, t->owner_result_rank, (gaspi_atomic_value_t)t->nb_result, &value_old, DLB_GASPI_TIMEOUT));
+    // 
+    SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, 0, t->owner_result_rank, (gaspi_atomic_value_t)t->nb_result, &value_old, TITUS_DLB_GASPI_TIMEOUT));
     DEBUG_PRINT("gaspi_atomic_fetch_add (seg_src[%llu], off[0], rank[%llu], nb_result[%llu], value_old[%llu]))\n",context->segment_result, t->owner_result_rank, t->nb_result, value_old);
+
+    t2 = rdtsc(); //! TODO : add signal
+    context->task_result_counter += (t2-t1);
 
 	get_context()->get_logger()->signal_end_return_results();
 }

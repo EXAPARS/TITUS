@@ -16,6 +16,7 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,14 +24,14 @@
 #include <GASPI.h>
 #include <stdint.h>
 #include <math.h>
-#include <DLB.hpp>
+#include <TITUS_DLB.hpp>
 #include <sys/time.h>
 #include <cassert>
 #include <ostream>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
-#include <dlb_gaspi_tools.hpp>
+#include <TITUS_DLB_gaspi_tools.hpp>
 
 #if GASPI_MAJOR_VERSION==1 && GASPI_MINOR_VERSION<3
 #define GASPI_TOPOLOGY_NONE 0
@@ -38,11 +39,12 @@
 #define GASPI_TOPOLOGY_DYNAMIC 2
 #endif
 
+// @ BENCHMARK PARAMETERS
 size_t TASK_NUMBER             = 10000;
 double TASK_TIME               = 0.0006;
-size_t NB_INTEGER_FOR_TASK       = 10;            //>= 10 integer
-size_t SHARED_SEGMENT_SIZE       = 10000;            //>= 10 000 bytes
-DLB::DLB_Algorithm algorithm   = DLB::WORK_STEALING;
+size_t NB_INTEGER_PER_TASK     = 10;            //>= 10 integer
+size_t SHARED_SEGMENT_SIZE     = 10000;            //>= 10 000 bytes
+TITUS_DLB::TITUS_DLB_Algorithm algorithm   = TITUS_DLB::WORK_STEALING;
 
 
 double sum_double_array(double *array, int lenght)
@@ -151,12 +153,12 @@ void init_problem(int *array_problem, std::pair<size_t, size_t> tasks_info)
     
     for(size_t i=0 ; i < tasks_info.first; ++i)
     {
-        for(size_t j=0;j<NB_INTEGER_FOR_TASK;++j)
+        for(size_t j=0;j<NB_INTEGER_PER_TASK;++j)
         {
-            if(j>=10)    array_problem[i*NB_INTEGER_FOR_TASK+j] = rand();
+            if(j>=10)    array_problem[i*NB_INTEGER_PER_TASK+j] = rand();
             else
             {
-                array_problem[i*NB_INTEGER_FOR_TASK+j] = ctr;
+                array_problem[i*NB_INTEGER_PER_TASK+j] = ctr;
                 ctr++;
             }
         }
@@ -212,7 +214,7 @@ void solve_task(void *task, void *result, void * unused_params)
 void resolve_problem(int *array_problem, int *array_result, int nb_task)
 {
     for(int i=0;i<nb_task;++i)
-        solve_task(&array_problem[i*NB_INTEGER_FOR_TASK], &array_result[i], NULL);
+        solve_task(&array_problem[i*NB_INTEGER_PER_TASK], &array_result[i], NULL);
 }
 
 
@@ -228,21 +230,26 @@ void parse_program_args(int argc, char ** argv){
         //printf("now parsing %s\n",argv[i]);
         if (str_startswith(argv[i],(char *)"TASK_NUMBER=")) TASK_NUMBER = atoll(argv[i]+12);
         if (str_startswith(argv[i],(char *)"TASK_TIME=")) TASK_TIME = atof(argv[i]+10);
-        if (str_startswith(argv[i],(char *)"NB_INTEGER_FOR_TASK=")) NB_INTEGER_FOR_TASK = atoll(argv[i]+20);
+        if (str_startswith(argv[i],(char *)"NB_INTEGER_PER_TASK=")) NB_INTEGER_PER_TASK = atoll(argv[i]+20);
         if (str_startswith(argv[i],(char *)"SHARED_SEGMENT_SIZE=")) SHARED_SEGMENT_SIZE = atoll(argv[i]+20);
-        if (!strcmp(argv[i],(char *)"-WS")) algorithm = DLB::WORK_STEALING;
-        if (!strcmp(argv[i],(char *)"-WR")) algorithm = DLB::WORK_REQUESTING;
+        if (!strcmp(argv[i],(char *)"-WS")) algorithm = TITUS_DLB::WORK_STEALING;
+        if (!strcmp(argv[i],(char *)"-WR")) algorithm = TITUS_DLB::WORK_REQUESTING;
     }
 }
 void print_bench_params(){
 	std::cout << std::endl << "----------- BENCH PARAMETERS ------------"
 	<< std::endl << "TASK_NUMBER=" << TASK_NUMBER
 	<< std::endl << "TASK_TIME=" << TASK_TIME
-	<< std::endl << "NB_INTEGER_FOR_TASK=" << NB_INTEGER_FOR_TASK
+	<< std::endl << "NB_INTEGER_PER_TASK=" << NB_INTEGER_PER_TASK
 	<< std::endl << "SHARED_SEGMENT_SIZE=" << SHARED_SEGMENT_SIZE
 	<< std::endl;
 }
 
+
+#ifndef __ICC
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic warning "-fpermissive"
+#endif
 void print_results(char * filename, int* array_result, std::pair<size_t, size_t> tasks_info){
     MPI_File out;
     std::stringstream msg ("");
@@ -255,21 +262,16 @@ void print_results(char * filename, int* array_result, std::pair<size_t, size_t>
         msg << array_result[i] << " ";
 	if ((tasks_info.second + i + 1) % 30 == 0) msg << std::endl;
     }
-
-#ifndef __ICC
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic warning "-fpermissive"
-#endif
     if (MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &out))		  { MPI_Abort(MPI_COMM_WORLD, 911);    }
     if (MPI_File_write_ordered(out, ((void *)msg.str().c_str()), msg.str().length(), MPI_CHAR, MPI_STATUS_IGNORE))                         { MPI_Abort(MPI_COMM_WORLD, 911);    }
     if (MPI_File_close(&out))                                                                                     { MPI_Abort(MPI_COMM_WORLD, 911);    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+}
 #ifndef __ICC
         #pragma GCC diagnostic pop
 #endif
 	
-    MPI_Barrier(MPI_COMM_WORLD);
-}
-
 int sequential_work(int * array_problem, int * array_result, int nb_task){
     int t1,t2;
     
@@ -283,7 +285,7 @@ int sequential_work(int * array_problem, int * array_result, int nb_task){
 
 
 int main(int argc, char **argv)
-{    //dlb_sig_handler dummy;
+{    //TITUS_DLB_sig_handler dummy;
 
 	uint64_t rdtsc_start = rdtsc();
 
@@ -327,7 +329,7 @@ int main(int argc, char **argv)
 
 // each process then allocates an appropriatly sized table and initializes it.
     nb_result        = nb_task.first;
-    task_size        = NB_INTEGER_FOR_TASK*sizeof(int);
+    task_size        = NB_INTEGER_PER_TASK*sizeof(int);
     if (task_size < 40) {TITUS_DBG << "WARNING : task_size < 10 integers"; TITUS_DBG.flush();}
     array_problem    = (int *) malloc(nb_task.first*task_size); //attention la dequeue doit être au moins de la taille du segment soit 10000 octets (4000)
     ASSERT(array_problem != nullptr);
@@ -345,17 +347,9 @@ int main(int argc, char **argv)
 // **************** SEQUENTIAL WORK ******************
 // ***************************************************
   
-    //sequential_work(array_problem, array_result, nb_task.first);
+   sequential_work(array_problem, array_result, nb_task.first);
     
-#ifndef __ICC
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Wwrite-strings"
-#endif
-    //print_results("result_ref.txt", array_result, nb_task);
-#ifndef __ICC
-	#pragma GCC diagnostic pop
-#endif
-
+   print_results("result_ref.txt", array_result, nb_task);
     //raz_result(array_result, nb_result);
   
 
@@ -377,7 +371,7 @@ int main(int argc, char **argv)
     //~ if (rank_mpi == 0) print_gaspi_config();
 	
     //~ SUCCESS_OR_DIE( gaspi_proc_init(GASPI_BLOCK));
-    SUCCESS_OR_DIE( DLB::gaspi_proc_init(GASPI_BLOCK));
+    ASSERT ( TITUS_DLB::gaspi_proc_init(GASPI_BLOCK) == GASPI_SUCCESS );
     uint64_t gaspi_proc_init_time = (rdtsc() - before_gaspi_proc_init) / (TITUS_PROC_FREQ /1000);
     uint64_t time_so_far = (rdtsc() - rdtsc_start) / (TITUS_PROC_FREQ / 1000);
 
@@ -393,18 +387,18 @@ int main(int argc, char **argv)
     assert(rank == rank_mpi);
 
 // ***************************************************
-// ****************** DLB INIT ***********************
+// ****************** TITUS_DLB INIT ***********************
 // ***************************************************
     
     uint64_t before_barrier_1 = rdtsc();
 	
-	TITUS_DBG << "entering DLB::gaspi_barrier" << std::endl; TITUS_DBG.flush();
+	TITUS_DBG << "entering TITUS_DLB::gaspi_barrier" << std::endl; TITUS_DBG.flush();
 	
-    SUCCESS_OR_DIE( DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
+    SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
     uint64_t before_context_init = rdtsc();
 
-    DLB_Context * context = new DLB_Context(SHARED_SEGMENT_SIZE, algorithm);
-    DLB::set_context(context);
+    TITUS_DLB_Context * context = new TITUS_DLB_Context(SHARED_SEGMENT_SIZE, algorithm);
+    TITUS_DLB::set_context(context);
 	// set theft attempt traces autodump in their own set of files
 	//std::stringstream theft_dump_filename("");
 	//theft_dump_filename << "theft_dump_" << context->get_context_id() << "_rank" << context->get_rank() << ".log"; //! TODO ajouter le numero de context, ajouter le nom de la machine ?
@@ -417,7 +411,7 @@ int main(int argc, char **argv)
     
     uint64_t after_set_problem = rdtsc();
 
-    SUCCESS_OR_DIE( DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
+    SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
 
     uint64_t after_barrier_2 = rdtsc();
     
@@ -434,20 +428,20 @@ int main(int argc, char **argv)
 			  << "set_problem_time = " << set_problem_time << " ms" << std::endl;
 	//TITUS_DBG.flush();
 // ***************************************************
-// ****************** DLB WORK ***********************
+// ****************** TITUS_DLB WORK ***********************
 // ***************************************************
     
     uint64_t before_parallel_work = rdtsc();
 	TITUS_DBG.reset_timeref();
 	TITUS_DBG << "time reset" << std::endl; TITUS_DBG.flush();
 
-    DLB::parallel_work();
+    TITUS_DLB::parallel_work();
 
     uint64_t after_parallel_work = rdtsc();
     
     uint64_t parallel_work_time = (after_parallel_work - before_parallel_work) / (TITUS_PROC_FREQ / 1000);
     
-    SUCCESS_OR_DIE( DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
+    SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
 
     time_so_far = (rdtsc() - rdtsc_start) / (TITUS_PROC_FREQ / 1000);
     TITUS_DBG << "time_so_far = " << time_so_far << " ms, ";
@@ -469,24 +463,32 @@ int main(int argc, char **argv)
     context->get_logger()->print_agregated_session_info(*out); // in logdir
     //context->get_logger()->dump_buffer(); // ensure full log dump in log dir
 	
+	if (rank == 0){
+		std::stringstream report_str("");
+		report_str << "core_freq_mhz="<< (int) (TITUS_PROC_FREQ / 1000000) << ";";
+		report_str << "echo \"## Assuming constant clock frequency @ $core_freq_mhz Mhz\";";
+		report_str << "working=`cat logs_* | grep time_spent_solving_tasks | cut -d':' -f2 | xargs | tr ' ' '+' | bc | xargs | tr ' ' '+' | bc` ;";
+		report_str << "ms_working=`echo \"$working / ($core_freq_mhz * 1000)\" | bc` ;";
+		report_str << "echo \"total_work_time = $ms_working ms\" ;";
+		report_str << "session_time=`cat logs_* | grep parallel_work_session_time | cut -d':' -f2 | sort -n | tail -n1` ;" ;
+		report_str << "ms_session_time=`echo \"$session_time / ($core_freq_mhz * 1000)\" | bc` ;";
+		report_str << "echo \"session_time = $ms_session_time ms\";";
+		report_str << "proc_count=`ls -1 logs_* | wc -l`;";
+		report_str << "echo \"proc_count = $proc_count\";";
+		report_str << "echo \"efficiency = `echo \"$ms_working * 100 / $ms_session_time / $proc_count\" | bc`%\";";
+		std::system(report_str.str().c_str());
+	}
+
 	TITUS_DBG << "calling gaspi_proc_term" << std::endl;
-    SUCCESS_OR_DIE( gaspi_proc_term(GASPI_BLOCK));
+    ASSERT( gaspi_proc_term(GASPI_BLOCK) == GASPI_SUCCESS );
 	TITUS_DBG << "gaspi_proc_term terminated" << std::endl;
 
 
 // ***************************************************
 // **************** PRINT RESULTS ********************
 // ***************************************************
-
-#ifndef __ICC	
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Wwrite-strings"
-#endif
-	//print_results("result.txt"	, array_result, nb_task);
-#ifndef __ICC
-	#pragma GCC diagnostic pop
-#endif
-
+	
+	print_results("result.txt"	, array_result, nb_task);
     
 
 	TITUS_DBG << "calling MPI_Finalize" << std::endl;

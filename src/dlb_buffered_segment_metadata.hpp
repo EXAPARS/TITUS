@@ -17,12 +17,12 @@
 */
 
 
-#ifndef _DLB_SEGMENT_METADATA_HPP_
-#include "dlb_segment_metadata.hpp"
+#ifndef _TITUS_DLB_SEGMENT_METADATA_HPP_
+#include "TITUS_DLB_segment_metadata.hpp"
 #endif
 
-#ifndef _DLB_BUFFERED_SEGMENT_METADATA_HPP_
-#define _DLB_BUFFERED_SEGMENT_METADATA_HPP_
+#ifndef _TITUS_DLB_BUFFERED_SEGMENT_METADATA_HPP_
+#define _TITUS_DLB_BUFFERED_SEGMENT_METADATA_HPP_
 #include <deque>
 #include <vector>
 #include <map>
@@ -37,14 +37,14 @@
 // Copying sizeof(BufferElt) + data_size adequetely copies the buffer entry as a whole.
 struct BufferElt{
     // *** CONSTRUCTOR ***
-    BufferElt(dlb_int first_task_id, dlb_int nb_result, dlb_int task_size, gaspi_rank_t owner);
+    BufferElt(TITUS_DLB_int first_task_id, TITUS_DLB_int nb_result, TITUS_DLB_int task_size, gaspi_rank_t owner);
     
     // *** FIELDS ***
-    dlb_int first_task_id;
+    TITUS_DLB_int first_task_id;
     size_t nb_result;
     size_t data_size;
     gaspi_rank_t owner;
-    dlb_int remote_buffer_alloc_attemps;
+    TITUS_DLB_int remote_buffer_alloc_attemps;
     // *** METHODS ***
     size_t buffer_entry_size()const;
     BufferElt* next()const;
@@ -127,7 +127,7 @@ struct BufferedSegmentMetadata : SegmentMetadata{
     gaspi_offset_t buffer_tail; // offset of element 0
     gaspi_offset_t buffer_head; // offset of past-last element
 
-    uint segment_wipe_id; //! TODO : cleanup or move to logger
+    uint segment_wipe_id; //! TODO : cleanup
 
     BufferEltIterator begin() const;
     BufferEltIterator end() const;
@@ -135,7 +135,7 @@ struct BufferedSegmentMetadata : SegmentMetadata{
     
     bool is_empty () const{return buffer_tail == buffer_head && local_transiting_results.size() == 0; }
     void purge () {
-		//memset(ADD_PTR(this,buffer_tail),0xFF,buffer_head-buffer_tail);//TODO : DEBUG mode
+		memset(ADD_PTR(this,buffer_tail),0xFF,buffer_head-buffer_tail);//TODO : remove
 		buffer_head = buffer_tail; buffer_elt_count = 0;
 	    pending_write_lists->clear();
 	    segment_wipe_id ++;
@@ -153,7 +153,7 @@ struct BufferedSegmentMetadata : SegmentMetadata{
 	
 	// old
     void try_flush_buffer_elts(); // defaults to self segment id (should not be necessary, remove arg)
-    std::pair<gaspi_offset_t,dlb_int> try_remote_buffer_alloc(size_t bytes, gaspi_segment_id_t seg_id, gaspi_rank_t target)const;
+    std::pair<gaspi_offset_t,TITUS_DLB_int> try_remote_buffer_alloc(size_t bytes, gaspi_segment_id_t seg_id, gaspi_rank_t target)const;
     bool try_push_buffer_elt_to(gaspi_pointer_t buffer_elt, gaspi_rank_t dst_rank, gaspi_segment_id_t dst_seg_id)const;
 	
 	// newer better faster stronger
@@ -178,13 +178,14 @@ struct BufferedSegmentMetadata : SegmentMetadata{
 	selected_elts_to_push try_push_vector_elt_to(InputIterator begin, InputIterator end, gaspi_rank_t target, gaspi_segment_id_t dst_seg_id);
 	std::vector<write_list_args_t> * pending_write_lists;
 	
-	// Storage for buffer elements on non-segment memory
     buffer_elts_by_dest local_transiting_results;
+    //! TODO : make generic, change to
+    //std::deque<std::pair <segment_id_t,BufferElt*>> local_transiting_results;
     void print_local_transiting_results(std::ostream & out, std::string line_prefix = std::string(""))const;
     void try_push_local_transiting_results();
 	
 	BufferedSegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_offset_t offset_in_scratch = 0)const;
-	static BufferedSegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch = 0);
+	static BufferedSegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch);
 	
 	virtual void print(std::ostream & out=std::cout, std::string line_prefix = std::string(""))const{
 		out << "BufferedSegmentMetadata : " << std::endl;
@@ -218,4 +219,4 @@ std::ostream & operator<<(std::ostream & out, const BufferedSegmentMetadata & ar
 std::ostream & operator << (std::ostream & out , BufferedSegmentMetadata::selected_elts_to_push const & arg);
 
 
-#endif //_DLB_BUFFERED_SEGMENT_METADATA_HPP_
+#endif //_TITUS_DLB_BUFFERED_SEGMENT_METADATA_HPP_

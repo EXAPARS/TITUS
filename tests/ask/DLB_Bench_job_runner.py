@@ -109,11 +109,11 @@ class machine_dependant_stuff(object):
 		
 		self.init_no_match_response()
 
-		self.DLB_HOME = os.getenv("DLB_HOME","~/DLB_Library")
+		self.TITUS_DLB_HOME = os.getenv("TITUS_DLB_HOME","~/TITUS_DLB_Library")
 		self.program = "DLB_Bench.bin"
-		self.program_path = self.DLB_HOME  + "/tests/bin/" + self.program
-		self.logs_dir = os.getenv("DLB_BENCH_LOGS",self.DLB_HOME + "/logs/DLB_Bench")
-		self.launch_scripts_dir = self.DLB_HOME + "/tests/ask/scripts"
+		self.program_path = self.TITUS_DLB_HOME  + "/tests/bin/" + self.program
+		self.logs_dir = os.getenv("DLB_Bench_LOGS",self.TITUS_DLB_HOME + "/logs/DLB_Bench")
+		self.launch_scripts_dir = self.TITUS_DLB_HOME + "/tests/ask/scripts"
 
 
 
@@ -451,11 +451,11 @@ class DLB_Bench_ask_request_runner():
 		if requested_filename != None :
 			self.requested_filename = requested_filename
 		else :
-			self.requested_filename = machine.DLB_HOME + "/tests/ask/requested.dat"
+			self.requested_filename = machine.TITUS_DLB_HOME + "/tests/ask/requested.dat"
 		if response_filename != None :
 				self.response_filename = response_filename
 		else :
-			self.response_filename = machine.DLB_HOME + "/tests/ask/response.dat"
+			self.response_filename = machine.TITUS_DLB_HOME + "/tests/ask/response.dat"
 
 		self.agregate_runs = machine.agregate_runs
 		

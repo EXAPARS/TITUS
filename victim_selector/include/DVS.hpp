@@ -24,15 +24,15 @@ class DVS_Context;
 class DVS_impl;
 class DVS_Context_impl;
 
-#ifndef DLB_EXTERNAL_LOGGER
-#include <DLB.hpp>
-#define DLB_EXTERNAL_LOGGER DLB_Logger
+#ifndef TITUS_DLB_EXTERNAL_LOGGER
+#include <TITUS_DLB.hpp>
+#define TITUS_DLB_EXTERNAL_LOGGER TITUS_DLB_Logger
 #endif
 
-#ifndef DLB_EXTERNAL_CONTEXT
-#include <DLB.hpp>
-#define DLB_EXTERNAL_CONTEXT DLB_Context 
-#define DLB_INTERNAL_CONTEXT DLB_Context_impl 
+#ifndef TITUS_DLB_EXTERNAL_CONTEXT
+#include <TITUS_DLB.hpp>
+#define TITUS_DLB_EXTERNAL_CONTEXT TITUS_DLB_Context 
+#define TITUS_DLB_INTERNAL_CONTEXT TITUS_DLB_Context_impl 
 #endif
 
 #ifndef DVS_RANK_TYPE
@@ -45,6 +45,7 @@ class DVS_Context_impl;
 class DVS{
 public :
 	enum DVS_MODE{	DVS_MODE_RANDOM,
+					DVS_MODE_WEIGHTED_TREE,
 					DVS_MODE_SMALL_WORLD
 	};
 
@@ -55,6 +56,7 @@ public :
 	static DVS_RANK_TYPE select_next_hop_to(DVS_RANK_TYPE dest);
 
 };
+//~ #define DEFAULT_DVS_MODE DVS::DVS_MODE_RANDOM
 #define DEFAULT_DVS_MODE DVS::DVS_MODE_SMALL_WORLD
 #define DVS_SW_SMALLEST_SIZE 8
 
@@ -66,10 +68,9 @@ class DVS_Context{
 public :
 	DVS_Context(DVS_Context_impl * arg):m_impl(arg) {};
 	
-	DVS_Context(DLB_EXTERNAL_CONTEXT * dlb_ctx, DVS::DVS_MODE mode = DEFAULT_DVS_MODE);
+	DVS_Context(TITUS_DLB_EXTERNAL_CONTEXT * TITUS_DLB_ctx, DVS::DVS_MODE mode = DEFAULT_DVS_MODE);
 
 	//! TODO : init from config file
-	//DVS_Context(DVS_RANK_TYPE self, DVS_RANK_TYPE n_rank, const char * config_filename, DVS_RANK_TYPE zero_rank = 0);
 	
 	//! TODO : context clone
 	//DVS_Context(const DVS_Context & arg);

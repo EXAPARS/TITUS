@@ -16,32 +16,35 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dlb_internal.hpp"
-#include "dlb_context.hpp"
+
+#include "TITUS_DLB_internal.hpp"
+#include "TITUS_DLB_context.hpp"
 
 
-DLB_Context_impl* 			DLB_impl::					context 					= nullptr;
+TITUS_DLB_Context_impl* 			TITUS_DLB_impl::					context 					= nullptr;
 
-bool 						DLB_impl::					barrier_segment_is_init 	= false;
-gaspi_segment_id_t 			DLB_impl::					segment_barrier 			= 10; // needed for notifications (???)
-gaspi_segment_id_t 			DLB_impl::barrier_status::	segment_barrier 			= 10;
-gaspi_pointer_t 			DLB_impl::					ptr_segment_barrier 		= nullptr;
-size_t 						DLB_impl::					shared_barrier_segment_size = 1000; // unused.
-DLB_impl::barrier_status * 	DLB_impl::					barrier_statuses 			= nullptr;
+bool 						TITUS_DLB_impl::					barrier_segment_is_init 	= false;
+gaspi_segment_id_t 			TITUS_DLB_impl::					segment_barrier 			= 10; // needed for notifications (???)
+gaspi_segment_id_t 			TITUS_DLB_impl::barrier_status::	segment_barrier 			= 10;
+gaspi_pointer_t 			TITUS_DLB_impl::					ptr_segment_barrier 		= nullptr;
+size_t 						TITUS_DLB_impl::					shared_barrier_segment_size = 1000; // unused.
+TITUS_DLB_impl::barrier_status * 	TITUS_DLB_impl::					barrier_statuses 			= nullptr;
 
-gaspi_queue_id_t 			DLB_impl::					queue_barrier = 100;
-gaspi_queue_id_t 			DLB_impl::barrier_status::	queue_barrier = 100;
+gaspi_queue_id_t 			TITUS_DLB_impl::					queue_barrier = 100; //! TODO : use max queue -1 ?
+gaspi_queue_id_t 			TITUS_DLB_impl::barrier_status::	queue_barrier = 100;
 
+bool                        TITUS_DLB_impl::                  gaspi_init_complete = false;
 
-void DLB_impl::set_context(DLB_Context_impl * arg) {
+void TITUS_DLB_impl::set_context(TITUS_DLB_Context_impl * arg) {
     context = arg;
     DVS::set_context(arg->get_DVS_context());
 }
-DLB_Context_impl * DLB_impl::get_context() {
+TITUS_DLB_Context_impl * TITUS_DLB_impl::get_context() {
     return context;
 }
-//! TODO : investigate and fix : DLB_Barrier is broken !
-DLB_impl::barrier_status::barrier_status(gaspi_group_t group):
+
+
+TITUS_DLB_impl::barrier_status::barrier_status(gaspi_group_t group):
 	handshake_ok(false),
 	group(group),
 	barrier_is_in_progress(false),
@@ -56,8 +59,7 @@ DLB_impl::barrier_status::barrier_status(gaspi_group_t group):
 
 // if barrier not in progress, initialises fields and sets barrier in progress.
 // else returns immediately and do nothing.
-//! TODO : investigate and fix : DLB_Barrier is broken !
-void DLB_impl::barrier_status::init_barrier(){
+void TITUS_DLB_impl::barrier_status::init_barrier(){
 	if (barrier_is_in_progress) return;	
 	
 	if (group != GASPI_GROUP_ALL){
@@ -135,7 +137,7 @@ gaspi_return_t gaspi_notify_no_overflow(
 	static const uint min_time = 100; // usecs
 	static uint64_t last_sent = 0;
 	uint64_t now = rdtsc();
-	uint usecs_to_sleep = min_time > ((now - last_sent) / 2400) ? min_time - ((now - last_sent) / 2400) : 0; // @ 2.4 Ghz
+	uint usecs_to_sleep = min_time > ((now - last_sent) / (double)(TITUS_PROC_FREQ / 1e6)) ? min_time - ((now - last_sent) / (double)(TITUS_PROC_FREQ / 1e6)) : 0; // @ 2.4 Ghz
 	if (timeout == GASPI_BLOCK || usecs_to_sleep / 1000 < timeout){
 		if (usecs_to_sleep > 0){
 			//TITUS_DBG << "sleeping for " << usecs_to_sleep << " usecs" << std::endl; //TITUS_DBG.flush();
@@ -150,7 +152,7 @@ gaspi_return_t gaspi_notify_no_overflow(
 }
 
 
-void DLB_impl::barrier_status::first_barrier_handshake_protocol(){
+void TITUS_DLB_impl::barrier_status::first_barrier_handshake_protocol(){
 	bool left_child_msg_sent = neighbors.left_child == ((uint16_t)-1);
 	bool left_child_msg_recieved = neighbors.left_child == ((uint16_t)-1);
 	bool right_child_msg_sent = neighbors.right_child == ((uint16_t)-1);
@@ -243,7 +245,7 @@ void DLB_impl::barrier_status::first_barrier_handshake_protocol(){
 // }
 // notify children using parent notification_id and my rank as value
 // end barrier
-gaspi_return_t DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
+gaspi_return_t TITUS_DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
 	// init instance fields and handshake if first barrier for this group.
 	init_barrier();
 	
@@ -297,7 +299,7 @@ gaspi_return_t DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
 		// notify up once per barrier session
 		if (neighbors.parent != ((uint16_t)-1)){
 			gaspi_notification_id_t upward_notification_id = neighbors.is_left_child() ? left_child_notification_id : right_child_notification_id;
-			SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.parent], upward_notification_id, rank+1, 0, DLB_GASPI_TIMEOUT));
+			SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.parent], upward_notification_id, rank+1, 0, TITUS_DLB_GASPI_TIMEOUT));
 			//~ TITUS_DBG << "sent upward notification to parent rank " << neighbors.parent << " : target = " << ranks_in_group[neighbors.parent] << ", notification ID = " << upward_notification_id << " notification value = " << rank +1 << std::endl; //TITUS_DBG.flush();
 		}
 	}
@@ -316,11 +318,11 @@ gaspi_return_t DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
 	// else : i am root. nowait
 	// notify down
 	if (neighbors.left_child != ((uint16_t)-1)){
-		SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.left_child], parent_notification_id, rank+1, 0, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.left_child], parent_notification_id, rank+1, 0, TITUS_DLB_GASPI_TIMEOUT));
 		//~ TITUS_DBG << "sent downward notifications to left child : target = " << ranks_in_group[neighbors.left_child] << ", notification ID = " << parent_notification_id << " notification value = " << rank +1 << std::endl; //TITUS_DBG.flush();
 	}
 	if (neighbors.right_child != ((uint16_t)-1)){
-		SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.right_child], parent_notification_id, rank+1, 0, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE(gaspi_notify(segment_barrier, ranks_in_group[neighbors.right_child], parent_notification_id, rank+1, 0, TITUS_DLB_GASPI_TIMEOUT));
 		//~ TITUS_DBG << "sent downward notifications to right child : target = " << ranks_in_group[neighbors.right_child] << ", notification ID = " << parent_notification_id << " notification value = " << rank +1 << std::endl; //TITUS_DBG.flush();
 	}
 	barrier_is_in_progress = false;
@@ -328,24 +330,24 @@ gaspi_return_t DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
 }
 
 
-gaspi_return_t DLB_impl::barrier(gaspi_group_t group, gaspi_timeout_t timeout){
+gaspi_return_t TITUS_DLB_impl::barrier(gaspi_group_t group, gaspi_timeout_t timeout){
 	// trivia checks
 	gaspi_config_t config;
     SUCCESS_OR_DIE(gaspi_config_get(&config));
     if (config.build_infrastructure != GASPI_TOPOLOGY_NONE) return gaspi_barrier(group, timeout);
 	
-	TITUS_DBG << "ERROR : DLB_impl::barrier() : DLB::barrier is buggy and should not be used with gaspi static topology. It is a placeholder for future development. Use GASPI_TOPOLOGY_DYNAMIC" << std::endl; //TITUS_DBG.flush();
+	TITUS_DBG << "ERROR : TITUS_DLB_impl::barrier() : TITUS_DLB::barrier is buggy and should not be used with gaspi static topology. It is a placeholder for future development. Use GASPI_TOPOLOGY_DYNAMIC" << std::endl; //TITUS_DBG.flush();
 	ASSERT(false);
 	
 	gaspi_number_t gaspi_is_init; SUCCESS_OR_DIE(gaspi_initialized(& gaspi_is_init));
 	if (gaspi_is_init == false){
-		TITUS_DBG << "ERROR : DLB_impl::barrier() : gaspi_proc_init has not been called before." << std::endl; //TITUS_DBG.flush();
+		TITUS_DBG << "ERROR : TITUS_DLB_impl::barrier() : gaspi_proc_init has not been called before." << std::endl; //TITUS_DBG.flush();
 		ASSERT(gaspi_is_init != false);
 		return GASPI_ERROR;
 	}
 	gaspi_number_t group_max; gaspi_group_max(&group_max);
 	if (group >= group_max){
-		TITUS_DBG << "ERROR : DLB_impl::barrier() : INVALID GROUP ID=" << ((uint)group) << std::endl; //TITUS_DBG.flush();
+		TITUS_DBG << "ERROR : TITUS_DLB_impl::barrier() : INVALID GROUP ID=" << ((uint)group) << std::endl; //TITUS_DBG.flush();
 		ASSERT(group < group_max);
 		return GASPI_ERROR;
 	}
@@ -358,7 +360,7 @@ gaspi_return_t DLB_impl::barrier(gaspi_group_t group, gaspi_timeout_t timeout){
 	
 	
 	// static fields init
-	// those are supposed to be static variables in the DLB class
+	// those are supposed to be static variables in the TITUS_DLB class
 	static bool barrier_segment_is_init = false;
 	if (! barrier_segment_is_init){
 		SUCCESS_OR_DIE( gaspi_segment_alloc(segment_barrier, 10000, GASPI_ALLOC_DEFAULT) );
@@ -377,7 +379,7 @@ gaspi_return_t DLB_impl::barrier(gaspi_group_t group, gaspi_timeout_t timeout){
 	return statuses[group].barrier(timeout);
 }
 
-gaspi_return_t DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
+gaspi_return_t TITUS_DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 	gaspi_number_t gaspi_is_init; gaspi_initialized(& gaspi_is_init);
 	if (gaspi_is_init) return GASPI_SUCCESS;
 	
@@ -386,12 +388,12 @@ gaspi_return_t DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 		first_call = false;
 		
 	    gaspi_config_t config;
-		SUCCESS_OR_DIE( gaspi_config_get(&config));
+		ASSERT( gaspi_config_get(&config) == GASPI_SUCCESS);
 		
 		config.queue_num = 3;
 		config.build_infrastructure = GASPI_TOPOLOGY_DYNAMIC;
 		
-		SUCCESS_OR_DIE( gaspi_config_set(config));
+		ASSERT( gaspi_config_set(config) == GASPI_SUCCESS);
 	}
 	
 	// ############ GASPI PROC INIT ################
@@ -402,12 +404,12 @@ gaspi_return_t DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 		gaspi_config_t config;
 		SUCCESS_OR_DIE( gaspi_config_get(&config));
 		if (config.queue_num < 3){
-			TITUS_DBG << "DLB_impl::gaspi_proc_init_impl : ASSERT IS GOING TO FAIL : number of queues must be at least 3. maybe gaspi_proc_init enforced it. check gaspi sources at GPI2.c:pgaspi_init_core()" << std::endl;
+			TITUS_DBG << "TITUS_DLB_impl::gaspi_proc_init_impl : ASSERT IS GOING TO FAIL : number of queues must be at least 3. maybe gaspi_proc_init enforced it. check gaspi sources at GPI2.c:pgaspi_init_core()" << std::endl;
 		}
 		ASSERT(config.queue_num >= 3);
 		gaspi_rank_t rank; gaspi_proc_rank(& rank);
 		if (rank == 0){
-			TITUS_DBG << "dlb_gaspi_proc_init() done using config :" << std::endl ;
+			TITUS_DBG << "TITUS_DLB_gaspi_proc_init() done using config :" << std::endl ;
 			print_gaspi_config(TITUS_DBG);
 			//TITUS_DBG.flush();
 		}
@@ -419,16 +421,16 @@ gaspi_return_t DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 		TITUS_DBG.reset_timeref();
 		TITUS_DBG << "time reset" << std::endl; TITUS_DBG.flush();
 	}
-	
+	gaspi_init_complete = true;
 
 	return r;
 }
 
 #ifdef DEBUG
-void DLB_impl::display_state() { context->display_state();}
-void DLB_impl::display_metadatatask() { context->display_metadatatask();}
-void DLB_impl::display_metadataresult() { context->display_metadataresult();}
-void DLB_impl::display_metadatatmp() { context->display_metadatatmp();}
-void DLB_impl::display_dequeue() { context->display_dequeue();}
-void DLB_impl::display_Context() { context->display_Context();}
+void TITUS_DLB_impl::display_state() { context->display_state();}
+void TITUS_DLB_impl::display_metadatatask() { context->display_metadatatask();}
+void TITUS_DLB_impl::display_metadataresult() { context->display_metadataresult();}
+void TITUS_DLB_impl::display_metadatatmp() { context->display_metadatatmp();}
+void TITUS_DLB_impl::display_dequeue() { context->display_dequeue();}
+void TITUS_DLB_impl::display_Context() { context->display_Context();}
 #endif

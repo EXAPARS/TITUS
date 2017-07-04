@@ -33,9 +33,9 @@ ssh_id <- "~/.ssh/id_rsa"
 #~ ssh_user <- "cfontenaille"
 #~ ssh_address <- "anselm.it4i.cz"
 
-distant_requested <- "~/DLB_Library/tests/ask/requested.dat"
-distant_response <- "~/DLB_Library/tests/ask/response.dat"
-distant_script <- "~/DLB_Library/tests/ask/run_requested.sh"
+distant_requested <- "~/TITUS_DLB_Library/tests/ask/requested.dat"
+distant_response <- "~/TITUS_DLB_Library/tests/ask/response.dat"
+distant_script <- "~/TITUS_DLB_Library/tests/ask/run_requested.sh"
 
 scp_push <- function (src,dest,id=ssh_id,user=ssh_user,address=ssh_address) {
 	sys_command <- paste("scp -i ", id, " ", src, " ", user, "@", address, ":", dest,sep="")

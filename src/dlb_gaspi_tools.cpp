@@ -16,55 +16,63 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <GASPI.h>
 #include <cstdint>
-#include <DLB.hpp>
+#include <TITUS_DLB.hpp>
+#include "TITUS_DLB_internal.hpp"
 #include <cassert>
-#include <dlb_gaspi_tools.hpp>
-#include "dlb_logger.hpp"
+#include <TITUS_DLB_gaspi_tools.hpp>
+#include "TITUS_DLB_logger.hpp"
 
 
-pthread_t dlb_main_thread_id;
+pthread_t TITUS_DLB_main_thread_id;
+
+gaspi_rank_t TITUS_gaspi_logger::get_proc_rank(){ // return some available rank id for logging purpose. make no critical use of the returned value.
+	// return the closest thing we have to a proc rank.
+	if (TITUS_DLB::get_gaspi_init_complete() == true)
+		{gaspi_rank_t ret; gaspi_proc_rank(&ret); return ret;}
+	// else
+#ifdef MPI // fallback : mpi interoperability mode
+	int mpi_is_init; MPI_Initialized(&mpi_is_init);
+	if (mpi_is_init) // if mpi is init, use mpi rank instead
+		{int ret ; MPI_Comm_rank(MPI_COMM_WORLD, &ret); return ret;} //! TODO check type ?
+#endif
+	gaspi_rank_t ret; gaspi_proc_rank(&ret); return ret;
+}
 
 void TITUS_gaspi_logger::add_proc_rank_str(std::ostream & out){
-
-	static int rank=0;
-
-	gaspi_number_t gaspi_is_init; assert(gaspi_initialized(&gaspi_is_init) == GASPI_SUCCESS);
-	if (gaspi_is_init){ // if gaspi is init, use gaspi rank
-		gaspi_rank_t gaspi_rank; gaspi_proc_rank(&gaspi_rank);
-		rank = gaspi_rank;
-	}
-	
-//! TODO : figure out a way to handle printing mpi rank if available without forcing mpi inclusion in TITUS, move this feature in DLB or DLB_Context or comm layer management
-//~ #ifdef MPI // mpi interoperability mode
-	//~ else if {
-		//~ int mpi_is_init; MPI_Initialized(&mpi_is_init);
-		//~ if (mpi_is_init) // if mpi is init, use mpi rank instead
-			//~ MPI_Comm_rank(MPI_COMM_WORLD, rank);
-	//~ }
-//~ #endif
-	else return; // no communication library initialized, add_proc_rank_str does not output anything.
-	
-	out << "rank " << rank << " : ";
-
+	out << "rank " << TITUS_gaspi_logger::get_proc_rank() << " : ";
 }
 
 void TITUS_gaspi_logger::flush(){
-	double now = ((double)(rdtsc() - timeref)) / TITUS_PROC_FREQ; // time, in seconds, elapsed since last call to reset_timeref()
 	if (str().empty()) {
+		//*this << "empty" << std::endl;
+		*out << "empty" << std::endl;
 		return;
 	}
+//	rdtsc();
 
 	if (use_gaspi_logger){
 		gaspi_printf(str().c_str());
 	}
 	else {
 		std::stringstream msg("");
+		double now = ((double)(rdtsc() - timeref)) / TITUS_PROC_FREQ; // time, in seconds, elapsed since last call to reset_timeref()
+		//! todo : old. remake.
+		//std::string line;
+		//while (std::getline(*this,line)){
+		//	if (line.size() == 0) msg << std::endl;
+		//	else {
+		//		msg << now << " ";// add_proc_rank_str(msg);
+		//		msg << line << std::endl;
+		//	}
+		//}
+		//*out << msg.str(); 
 		msg << std::fixed << std::setfill('0') << std::setw(14) << std::setprecision(8) << now << " ";
 		add_proc_rank_str(msg); msg << str();
 		*out << msg;
@@ -72,20 +80,22 @@ void TITUS_gaspi_logger::flush(){
 	str("");
 }
 
+gaspi_rank_t TITUS_gaspi_logger_simplistic::get_proc_rank(){ // return some available rank id for logging purpose. make no critical use of the returned value.
+	// return the closest thing we have to a proc rank.
+	if (TITUS_DLB::get_gaspi_init_complete() == true)
+		{gaspi_rank_t ret; gaspi_proc_rank(&ret); return ret;}
+	// else
+#ifdef MPI // mpi interoperability mode
+	std::cerr << "!! TOTO : TITUS_gaspi_logger_simplistic::get_proc_rank called before gaspi_init is complete" << std::endl;
+	int mpi_is_init; MPI_Initialized(&mpi_is_init);
+	if (mpi_is_init) // if mpi is init, use mpi rank instead
+		{int ret ; MPI_Comm_rank(MPI_COMM_WORLD, &ret); return ret;} //! TODO check type ?
+#endif
+	gaspi_rank_t ret; gaspi_proc_rank(&ret); return ret;
+}
 
 void TITUS_gaspi_logger_simplistic::add_proc_rank_str(std::ostream & out){
-
-	int rank;
-
-	gaspi_number_t gaspi_is_init; assert(gaspi_initialized(&gaspi_is_init) == GASPI_SUCCESS);
-	if (gaspi_is_init){ // if gaspi is init, use gaspi rank
-		gaspi_rank_t gaspi_rank; gaspi_proc_rank(&gaspi_rank);
-		rank = gaspi_rank;
-	}
-	else return; // no communication library initialized, add_proc_rank_str does not output anything.
-	
-	out << "[rank " << rank << "] : ";
-
+	out << "rank " << TITUS_gaspi_logger_simplistic::get_proc_rank() << " : ";
 }
 
 std::ostream & TITUS_gaspi_logger_simplistic::print_header(){
@@ -121,10 +131,10 @@ TITUS_gaspi_logger * get_TITUS_DBG(){
 }
 #endif //TITUS_DBG_WRAPPED
 
-dlb_sig_handler::dlb_sig_handler(){
+TITUS_DLB_sig_handler::TITUS_DLB_sig_handler(){
 	_is_init = true;
-	dlb_main_thread_id = pthread_self();
-	//std::cout << "found main tid = " << dlb_main_thread_id << std::endl;
+	TITUS_DLB_main_thread_id = pthread_self();
+	//std::cout << "found main tid = " << TITUS_DLB_main_thread_id << std::endl;
 	//signal(SIGKILL,print_stacktrace_and_quit); // cannot be caught
 	signal(SIGABRT,print_stacktrace_and_quit);
 	signal(SIGTERM,print_stacktrace_and_quit);
@@ -133,13 +143,13 @@ dlb_sig_handler::dlb_sig_handler(){
 	signal(SIGINT,print_stacktrace_and_quit);
 	signal(SIGUSR1,print_stacktrace_and_quit);
 	signal(SIGUSR2,print_stacktrace_and_quit);
-	//std::cout << "dlb_sig_handler initialized !" << std::endl;
+	//std::cout << "TITUS_DLB_sig_handler initialized !" << std::endl;
 }
 
 #define UNW_LOCAL_ONLY
 #include "libunwind-x86_64.h"
 // backtrace with libunwind
-//void print_stacktrace (unw_addr_space_t dlb_unw_target_thread_addr_space,  unw_context_t * p_dlb_unw_target_thread_context) {
+//void print_stacktrace (unw_addr_space_t TITUS_DLB_unw_target_thread_addr_space,  unw_context_t * p_TITUS_DLB_unw_target_thread_context) {
 void print_stacktrace () {
 
 	unw_cursor_t cursor; 
@@ -152,9 +162,8 @@ void print_stacktrace () {
 	unw_context_t uc;
 	unw_getcontext(&uc);
 	unw_init_local(&cursor, &uc);
-	//int unw_init_remote(&cursor , dlb_unw_target_thread_addr_space, p_dlb_unw_target_thread_context);
+	//int unw_init_remote(&cursor , TITUS_DLB_unw_target_thread_addr_space, p_TITUS_DLB_unw_target_thread_context);
 
-	gaspi_rank_t rank; gaspi_proc_rank(&rank);
 	int ignored_steps = 0;
 	int i = 0;
 	do {
@@ -180,31 +189,30 @@ bool gaspi_is_init(){ // non-standard (from GASPI_Ext.h)
 }
 
 void print_stacktrace_and_quit(int sig){
-	if (dlb_main_thread_id == 0){
-		TITUS_DBG << "WARNING : dlb_main_thread_id was not set" << std::endl;
+	if (TITUS_DLB_main_thread_id == 0){
+		TITUS_DBG << "WARNING : TITUS_DLB_main_thread_id was not set" << std::endl;
 	}
 	else {
-		if (pthread_self() != dlb_main_thread_id){
-			TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in thread " << pthread_self() << ", killing main thread (id = " << dlb_main_thread_id << ")" << std::endl;
-			pthread_kill(dlb_main_thread_id, sig);
+		if (pthread_self() != TITUS_DLB_main_thread_id){
+			TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in thread " << pthread_self() << ", killing main thread (id = " << TITUS_DLB_main_thread_id << ")" << std::endl;
+			pthread_kill(TITUS_DLB_main_thread_id, sig);
 			usleep(60000000); // 1min
 			exit(sig);
 		}
 	TITUS_DBG << "print_stacktrace_and_quit : got sig " << sig << " in main thread " << pthread_self() << std::endl;
 	}
-	//print_stacktrace(dlb_sig_handler::dlb_unw_main_thread_addr_space, & dlb_sig_handler::dlb_unw_main_thread_context);
+	//print_stacktrace(TITUS_DLB_sig_handler::TITUS_DLB_unw_main_thread_addr_space, & TITUS_DLB_sig_handler::TITUS_DLB_unw_main_thread_context);
 	print_stacktrace();
 	
-	gaspi_rank_t rank = (gaspi_rank_t)-1;
-	if (gaspi_is_init())  gaspi_proc_rank(&rank);
+	gaspi_rank_t rank = std::remove_reference<decltype(TITUS_DBG)>::type::get_proc_rank();
 	std::stringstream outname("");
 	outname << "cleanup_logs_" << std::setfill('0') << std::setw(4) << ((rank == (gaspi_rank_t)-1)?(gaspi_rank_t)rdtsc()&0xFFFF : rank) << ".out";
 	std::ostream * out = new std::ofstream(outname.str().c_str());
-	DLB::get_context()->get_logger()->print_all_sessions(*out);
+	TITUS_DLB::get_context()->get_logger()->print_all_sessions(*out);
 
-	DLB_Context * dlb_ctx = DLB::get_context();
-	dlb_ctx->get_logger()->m_impl->signal_end_parallel_work_session();
-	if (dlb_ctx != nullptr)  TITUS_DBG << *dlb_ctx;
+	TITUS_DLB_Context * TITUS_DLB_ctx = TITUS_DLB::get_context();
+	TITUS_DLB_ctx->get_logger()->m_impl->signal_end_parallel_work_session();
+	if (TITUS_DLB_ctx != nullptr)  TITUS_DBG << *TITUS_DLB_ctx;
 	//TITUS_DBG << std::endl;
 	TITUS_DBG.flush();
 	exit(sig);
@@ -214,27 +222,32 @@ std::ostream & operator<< (std::ostream & out, std::stringstream const& msg){
 	return out << msg.str();
 }
 
+
 void print_gaspi_config(std::ostream & out){
 	gaspi_config_t config; gaspi_config_get(&config);
-	out << "logger=" << config.logger << std::endl;
-	out << "sn_port=" << config.sn_port << std::endl;
-	out << "net_info=" << config.net_info << std::endl;
-	out << "netdev_id=" << config.netdev_id << std::endl;
-	out << "mtu=" << config.mtu << std::endl;
-	out << "port_check=" << config.port_check << std::endl;
-	out << "user_net=" << config.user_net << std::endl;
-	out << "network=" << config.network << std::endl;
-	out << "queue_depth=" << config.queue_depth << std::endl;
-	out << "queue_num=" << config.queue_num << std::endl;
-	out << "group_max=" << config.group_max << std::endl;
-	out << "segment_max=" << config.segment_max << std::endl;
-	out << "transfer_size_max=" << config.transfer_size_max << std::endl;
-	out << "notification_num=" << config.notification_num << std::endl;
-	out << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl;
-	out << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl;
-	out << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl;
-	out << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl;
-	out << "build_infrastructure=" << config.build_infrastructure << std::endl;
+    /* GPI-2 only */
+    out << "logger=" << config.logger << std::endl; // gaspi_uint	                      	                            /* flag to set logging */
+    out << "sn_port=" << config.sn_port << std::endl; // gaspi_uint                                                     /* port for internal comm */
+    out << "net_info=" << config.net_info << std::endl; // gaspi_uint                                                   /* flag to set network information display*/
+    out << "user_net=" << config.user_net << std::endl; // gaspi_uint                                                   /* flag if user has set the network */
+    out << "sn_persistent=" << config.sn_persistent << std::endl; // gaspi_int                                          /* flag whether sn connection is persistent */
+    out << "sn_timeout=" << config.sn_timeout << std::endl; // gaspi_timeout_t                                          /* timeout value for internal sn operations */
+    //out << "dev_config=" << config.dev_config << std::endl; // gaspi_dev_config_t                                     /* Specific, device-dependent params */
+
+    /* GASPI specified */
+    out << "network=" << gaspi_network_str(config.network) << std::endl; // gaspi_network_t                             /* network type to be used */
+    out << "queue_size_max=" << config.queue_size_max << std::endl; // gaspi_uint                                       /* the queue depth (size) to use */
+    out << "queue_num=" << config.queue_num << std::endl; // gaspi_uint                                                 /* the number of queues to use */
+    out << "group_max=" << config.group_max << std::endl; // gaspi_number_t                                             /* max number of groups that can be created */
+    out << "segment_max=" << config.segment_max << std::endl; // gaspi_number_t                                         /* max number of segments that can be created */
+    out << "transfer_size_max=" << config.transfer_size_max << std::endl; // gaspi_size_t                               /* maximum size (bytes) of a single data transfer */
+    out << "notification_num=" << config.notification_num << std::endl; // gaspi_number_t                               /* maximum number of allowed notifications */
+    out << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl; // gaspi_number_t                   /* maximum number of allowed on-going passive requests */
+    out << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl; // gaspi_number_t             /* maximum size (bytes) of a single passive transfer */
+    out << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl; // gaspi_size_t                             /* size of internal buffer for gaspi_allreduce_user */
+    out << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl; // gaspi_number_t                           /* maximum number of elements in gaspi_allreduce */
+    out << "build_infrastructure=" << gaspi_topology_str(config.build_infrastructure) << std::endl; // gaspi_topology_t /* whether and how the topology should be built at initialization */
+
 }
 // allocates and returns a printable string representing the state of the gaspi_config structure
 void print_gaspi_config(char ** out){
@@ -259,7 +272,7 @@ inline void wait_for_queue_entries (gaspi_queue_id_t* queue, unsigned long wante
 	if (! (queue_size + wanted_entries <= queue_size_max))
 	{
 		*queue = (*queue + 1) % queue_num;
-		SUCCESS_OR_DIE (gaspi_wait (*queue, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE (gaspi_wait (*queue, TITUS_DLB_GASPI_TIMEOUT));
 	}
 }
 
@@ -274,7 +287,7 @@ void wait_for_flush_queues ()
 	gaspi_queue_id_t queue = 0;
 	while( queue < queue_num )
 	{
-		SUCCESS_OR_DIE (gaspi_wait (queue, DLB_GASPI_TIMEOUT));
+		SUCCESS_OR_DIE (gaspi_wait (queue, TITUS_DLB_GASPI_TIMEOUT));
 		++queue;
 	}
 }
@@ -282,7 +295,7 @@ void wait_for_flush_queues ()
 void wait_or_die( gaspi_segment_id_t segment_id, gaspi_notification_id_t notification_id, gaspi_notification_t expected	)
 {
 	gaspi_notification_id_t id;
-	SUCCESS_OR_DIE(gaspi_notify_waitsome (segment_id, notification_id, 1, &id, DLB_GASPI_TIMEOUT));
+	SUCCESS_OR_DIE(gaspi_notify_waitsome (segment_id, notification_id, 1, &id, TITUS_DLB_GASPI_TIMEOUT));
 	ASSERT (id == notification_id);
 
 	gaspi_notification_t value;

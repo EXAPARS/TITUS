@@ -16,13 +16,14 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dlb_context.hpp"
+
+#include "TITUS_DLB_context.hpp"
 #include <string>
 #include <sstream>
 #include <cstring>
 
-#ifndef _DLB_SEGMENT_METADATA_HPP_
-#define _DLB_SEGMENT_METADATA_HPP_
+#ifndef _TITUS_DLB_SEGMENT_METADATA_HPP_
+#define _TITUS_DLB_SEGMENT_METADATA_HPP_
 
 // *********************************************************************
 // ************************* METADATA BASE *****************************
@@ -37,20 +38,21 @@ struct SegmentMetadata{
     gaspi_atomic_value_t state; // lock state
     size_t segment_size; // bytesize of the segment
     gaspi_segment_id_t segment_id;
+    gaspi_atomic_value_t connected_pairs;
 
     // *** METHODS ***
     virtual std::string state_str()const {return state_str(state);}
     virtual std::string state_str(gaspi_atomic_value_t value)const {std::stringstream r; r << "state to str not defined (requires overload) (" << value << ")"; return r.str();}
-    static gaspi_atomic_value_t compare_and_swap_status(gaspi_rank_t target, gaspi_segment_id_t target_segment, gaspi_atomic_value_t comp, gaspi_atomic_value_t new_val);
+    static gaspi_atomic_value_t compare_and_swap_status(gaspi_rank_t target, gaspi_segment_id_t target_segment, gaspi_atomic_value_t comp, gaspi_atomic_value_t new_val, bool nowait = false);
 
 	SegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_offset_t offset_in_scratch = 0)const;
-	static SegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch = 0);
+	static SegmentMetadata * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch);
     
     const size_t & get_size() const {return segment_size;}
     
     virtual void print(std::ostream & out=std::cout, std::string line_prefix = std::string(""))const{
 		out << "SegmentMetadata : " << std::endl;
-		out << line_prefix << "state : " << this->state_str() << ", segment_size : " << segment_size << ", segment_id : " << (uint)segment_id << std::endl;
+		out << line_prefix << "state : " << this->state_str() << ", segment_size : " << segment_size << ", segment_id : " << (uint)segment_id << ", connected_pairs : " << (uint)connected_pairs << std::endl;
 	}
 };
 
@@ -61,7 +63,7 @@ std::ostream & operator<<(std::ostream & out, const SegmentMetadata & arg);
 // *************** buffered SEGMENT METADATA BASE ********************
 // *********************************************************************
 
-#include "dlb_buffered_segment_metadata.hpp"
+#include "TITUS_DLB_buffered_segment_metadata.hpp"
 
 // *********************************************************************
 // ****************** METADATA FOR TASK SEGMENT ************************
@@ -71,7 +73,7 @@ std::ostream & operator<<(std::ostream & out, const SegmentMetadata & arg);
 struct MetadataTask : SegmentMetadata
 {
     // *** CONSTRUCTOR ***
-    MetadataTask(dlb_int shared_task_segment_size, gaspi_segment_id_t segment_id);
+    MetadataTask(TITUS_DLB_int shared_task_segment_size, gaspi_segment_id_t segment_id);
     void reset();
     
     // *** FIELDS ***
@@ -80,12 +82,13 @@ struct MetadataTask : SegmentMetadata
     gaspi_atomic_value_t end_task_id;
     gaspi_atomic_value_t task_size;
     gaspi_atomic_value_t result_size;
+    size_t private_tasks_count;
     void (*ptr_task_function)(void*, void*, void*);
 
     // *** METHODS ***
     // default segment id is autoselect from context
 	MetadataTask * read_to_scratch(gaspi_rank_t target_rank, gaspi_offset_t offset_in_scratch = 0)const;
-	static MetadataTask * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch = 0);
+	static MetadataTask * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch);
 	bool is_empty(){return nb_task == 0;}
 
     virtual std::string state_str()const;
@@ -120,8 +123,8 @@ std::ostream & operator<<(std::ostream & out, const TerminationDetectionData & a
 struct MetadataResult : BufferedSegmentMetadata
 {
     // *** CONSTRUCTOR ***
-    MetadataResult(size_t segment_size,  gaspi_segment_id_t segment_id, dlb_int rank, dlb_int nb_procs, dlb_int nb_usr_results, dlb_int result_size, void *usr_results);
-    void reset(dlb_int ratank, dlb_int nb_procs);
+    MetadataResult(size_t segment_size,  gaspi_segment_id_t segment_id, TITUS_DLB_int rank, TITUS_DLB_int nb_procs, TITUS_DLB_int nb_usr_results, TITUS_DLB_int result_size, void *usr_results);
+    void reset(TITUS_DLB_int ratank, TITUS_DLB_int nb_procs);
     
     // *** FIELDS ***
     gaspi_atomic_value_t nb_result; // completion advancement
@@ -133,7 +136,7 @@ struct MetadataResult : BufferedSegmentMetadata
     // *** METHODS ***
     // default segment id is autoselect from context 
 	MetadataResult * read_to_scratch(gaspi_rank_t target_rank, gaspi_offset_t offset_in_scratch = 0)const;
-	static MetadataResult * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch = 0);
+	static MetadataResult * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch);
 	MetadataResult * copy_local_segment_to_scratch();
 
 	float mem_occupancy()const ;
@@ -176,7 +179,7 @@ struct MetadataTmp : SegmentMetadata
     // *** METHODS ***
     // default segment id is autoselect from context 
 	MetadataTmp * read_to_scratch(gaspi_rank_t target_rank, gaspi_offset_t offset_in_scratch = 0)const;
-	static MetadataTmp * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch = 0);
+	static MetadataTmp * read_to_scratch(gaspi_rank_t target_rank, gaspi_segment_id_t target_segment_id, gaspi_offset_t offset_in_scratch);
 	bool is_empty(){return nb_result == 0;}
 	
 	virtual std::string state_str()const;
@@ -190,4 +193,4 @@ struct MetadataTmp : SegmentMetadata
 };
 std::ostream & operator<<(std::ostream & out, const MetadataTmp & arg);
 
-#endif //_DLB_SEGMENT_METADATA_HPP_
+#endif //_TITUS_DLB_SEGMENT_METADATA_HPP_

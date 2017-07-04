@@ -16,6 +16,7 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #ifndef __GASPI_TOOLS_H__
 #define __GASPI_TOOLS_H__
 
@@ -36,17 +37,36 @@
 #include <cxxabi.h>
 
 #ifndef TITUS_PROC_FREQ
-#define TITUS_PROC_FREQ          2.4e9
+#define TITUS_PROC_FREQ          2.6e9
 #endif
 
-#define DLB_GASPI_TIMEOUT GASPI_BLOCK
-//#define DLB_GASPI_TIMEOUT GASPI_BLOCK
+#define TITUS_DLB_GASPI_TIMEOUT GASPI_BLOCK
+//#define TITUS_DLB_GASPI_TIMEOUT GASPI_BLOCK
 
 #if GASPI_MAJOR_VERSION==1 && GASPI_MINOR_VERSION<3
 #define GASPI_TOPOLOGY_NONE 0
 #define GASPI_TOPOLOGY_STATIC 1
 #define GASPI_TOPOLOGY_DYNAMIC 2
 #endif
+
+static inline const char * gaspi_topology_str(const gaspi_topology_t & arg){
+	switch (arg){
+		case GASPI_TOPOLOGY_NONE : return "GASPI_TOPOLOGY_NONE"; break;
+		case GASPI_TOPOLOGY_STATIC : return "GASPI_TOPOLOGY_STATIC"; break;
+		case GASPI_TOPOLOGY_DYNAMIC : return "GASPI_TOPOLOGY_DYNAMIC"; break;
+		default : return "UNKNOWN_TOPOLOGY_VALUE"; break;
+	}
+}
+static inline const char * gaspi_network_str(const gaspi_network_t & arg){
+	switch(arg){
+      case GASPI_IB : return "GASPI_IB";
+      case GASPI_ROCE : return "GASPI_ROCE";
+      case GASPI_ETHERNET : return "GASPI_ETHERNET";
+      case GASPI_GEMINI : return "GASPI_GEMINI";
+      case GASPI_ARIES : return "GASPI_ARIES";
+      default : return "UNKNOWN gaspi_network_t VALUE";
+  }
+}
 
 
 #define VAL_UNLOCKED 9999999L
@@ -78,6 +98,7 @@ class TITUS_gaspi_logger_simplistic{
 	uint64_t timeref;
 	static void add_proc_rank_str(std::ostream & out); // appends "rank [rankno] : " to output stream
 public:
+	static gaspi_rank_t get_proc_rank();// return some available rank id for logging purpose. make no critical use of the returned value.
 	// uses either gaspi_logger or cerr
 	TITUS_gaspi_logger_simplistic(std::ostream & out = std::cerr) : out(&out){reset_timeref();}
 
@@ -103,6 +124,7 @@ class TITUS_gaspi_logger : public std::stringstream{
 	uint64_t timeref;
 	static void add_proc_rank_str(std::ostream & out); // appends "rank [rankno] : " to output stream
 public:
+	static gaspi_rank_t get_proc_rank();// return some available rank id for logging purpose. make no critical use of the returned value.
 	// uses either gaspi_logger or cerr
 	TITUS_gaspi_logger(bool use_gaspi_logger = false) : std::stringstream(""),use_gaspi_logger(use_gaspi_logger),out(&std::cerr){reset_timeref();}
 	// uses custom ostream
@@ -150,17 +172,17 @@ extern TITUS_gaspi_logger_simplistic * m_TITUS_DBG;
 #define UNW_LOCAL_ONLY
 #include "libunwind-x86_64.h"
 // backtrace with libunwind
-extern void print_stacktrace (unw_addr_space_t * p_dlb_unw_target_thread_addr_space,  unw_context_t * p_dlb_unw_target_thread_context);
+extern void print_stacktrace (unw_addr_space_t * p_TITUS_DLB_unw_target_thread_addr_space,  unw_context_t * p_TITUS_DLB_unw_target_thread_context);
 
 extern void print_stacktrace_and_quit(int sig);
 
 
-class dlb_sig_handler{
+class TITUS_DLB_sig_handler{
 public:
-	//static unw_addr_space_t dlb_unw_main_thread_addr_space;	
-	//static unw_context_t dlb_unw_main_thread_context;	
-	//dlb_sig_handler * instance;
-	dlb_sig_handler();
+	//static unw_addr_space_t TITUS_DLB_unw_main_thread_addr_space;	
+	//static unw_context_t TITUS_DLB_unw_main_thread_context;	
+	//TITUS_DLB_sig_handler * instance;
+	TITUS_DLB_sig_handler();
 	bool is_init() { return _is_init; }
 private :
 	bool _is_init;
@@ -182,8 +204,16 @@ inline static void print_stacktrace(){
 #define SUCCESS_OR_DIE(f...)                                                                        \
 do                                                                                                  \
 {                                                                                                   \
+    uint64_t f_called = rdtsc();                                                                    \
     const gaspi_return_t __r__ = f;                                                                 \
-    if (__r__ != GASPI_SUCCESS)                                                                     \
+    uint64_t f_returned = rdtsc();                                                                  \
+    double time_ms = (double)(f_returned - f_called) / (((double)TITUS_PROC_FREQ) / 1e3);           \
+    if (time_ms > 10.0){                                                                            \
+		char str[512];                                                                              \
+		sprintf (str, "Warning : %f ms in '%s' [%s:%i]\n", time_ms, #f, __FILE__, __LINE__);        \
+		TITUS_DBG << str;                                                                           \
+	}                                                                                               \
+	if (__r__ != GASPI_SUCCESS)                                                                     \
     {                                                                                               \
         printf("SUCCESS_OR_DIE failed at [%s:%i].\n",__FILE__,__LINE__);                            \
         gaspi_rank_t rank;                                                                          \
@@ -191,7 +221,7 @@ do                                                                              
         fprintf (stderr,"\nError rank %d: '%s' [%s:%i]: %i\n",rank, #f, __FILE__, __LINE__, __r__); \
         fprintf (stderr," \n Error %i : %s\n",__r__, gaspi_error_str(__r__));                       \
         print_stacktrace_and_quit(-1);                                                              \
-        abort();                                                                        \
+        abort();                                                                                    \
     }                                                                                               \
 } while (0);
 
@@ -201,8 +231,9 @@ if (!(x))                                                                       
 	gaspi_rank_t rank;                                                                  \
     gaspi_proc_rank(&rank);                                                             \
     fprintf (stderr, "Error rank %d : '%s' [%s:%i]\n", rank, #x, __FILE__, __LINE__);   \
+    fflush (stderr);                                                                    \
     print_stacktrace_and_quit(-1);                                                      \
-    abort();                                                                \
+    abort();                                                                            \
 }
 
 static void wait_if_queue_full(const gaspi_queue_id_t queue_id, gaspi_number_t request_size){

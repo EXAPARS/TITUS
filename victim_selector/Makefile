@@ -1,6 +1,6 @@
 # 
 # This file is part of the TITUS software.
-# https://github.com/exapars/
+# https://github.com/exapars/TITUS
 # Copyright (c) 2015-2016 University of Versailles UVSQ
 #
 # TITUS  is a free software: you can redistribute it and/or modify  
@@ -16,30 +16,36 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-#====================================================================================
-#
-#	AUTHOR	:	UEMURA Seijilo, FONTENAILLE Clément, PETIT Eric
-#	FILE	:	Makefile
-#	CONTENT	:
-#
-#====================================================================================
 
+ifeq ($(USE_INTEL_COMPILER),true)
+    CC               = mpiicc -D__ICC 
+    CXX              = mpiicc -std=c++0x -D__ICC
+    MPICC            = mpiicc -D__ICC
+    MPICXX           = mpiicc -std=c++0x -D__ICC
+    #L_SUPC++         = -lsupc++
+    L_MATH           = -limf
+else
+    # user may export GCC_HAS_COLORING=true
+    ifeq ($(GCC_HAS_COLORING),true)
+        CC       = mpicc -fdiagnostics-color=always 
+        CXX      = mpicxx -std=c++0x -fdiagnostics-color=always 
+        MPICC    = mpicc -fdiagnostics-color=always 
+        MPICXX   = mpicxx -std=c++0x -fdiagnostics-color=always 
+    else
+        CC       = mpicc 
+        CXX      = mpicxx -std=c++0x 
+        MPICC    = mpicc 
+        MPICXX   = mpicxx -std=c++0x
+    endif
+    L_SUPC++     = -lsupc++
+    L_MATH       = -lm
+endif
+	
 
 DFLAGS = -g -O0 -W -Wall
-
-CXX = mpicxx -std=c++0x 
 CFLAGS = -fPIC -Wall -O2 $(DFLAGS)
 LDFLAGS = -fPIC -shared $(DFLAGS)
 
-GPI_INC=$(GASPI_HOME)/include
-GPI_LIB=$(GASPI_HOME)/lib64
-
-DLB_INC=$(DLB_HOME)/include
-DLB_LIB=$(DLB_HOME)/lib
-
-DVS_HOME=$(DLB_HOME)/victim_selector
-DVS_INC=$(DVS_HOME)/include
-DVS_LIB=$(DVS_HOME)/lib
 
 
 SRC	:= $(wildcard src/*.cpp) $(wildcard src/*.cpp) $(wildcard src/TinyMT/*.c)
@@ -78,5 +84,5 @@ clean:
 
 cleanall: clean
 	rm -rvf  doxygen/html/ doxygen/latex/
-
+mrproper: cleanall
 .PHONY: all run clean

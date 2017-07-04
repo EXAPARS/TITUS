@@ -16,10 +16,10 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __DLB_LOGGER_H__
-#define __DLB_LOGGER_H__
+#ifndef __TITUS_DLB_LOGGER_H__
+#define __TITUS_DLB_LOGGER_H__
 
-#include <DLB.hpp>
+#include <TITUS_DLB.hpp>
 #include <list>
 #include <sys/time.h>
 #include <string>
@@ -38,15 +38,15 @@ typedef unsigned short gaspi_rank_t;
 typedef long unsigned int uint64_t;
 #endif
 
-#define DLB_LOGGER_THEFT_BUFFER_SIZE (sizeof(theft_info) * 100)
+#define TITUS_DLB_LOGGER_THEFT_BUFFER_SIZE (sizeof(theft_info) * 100)
 
-#define DLB_LOGGER_BUFFERED_THEFT_DUMP
+#define TITUS_DLB_LOGGER_BUFFERED_THEFT_DUMP
 
 
 
 struct theft_info{
     theft_info() {}
-    theft_info(size_t theft_id, size_t context_id, size_t session_id, uint64_t start_date, uint64_t end_date, gaspi_rank_t thief, gaspi_rank_t victim, gaspi_rank_t tasks_owner, dlb_int theft_status, size_t nb_task_theft):
+    theft_info(size_t theft_id, size_t context_id, size_t session_id, uint64_t start_date, uint64_t end_date, gaspi_rank_t thief, gaspi_rank_t victim, gaspi_rank_t tasks_owner, TITUS_DLB_int theft_status, size_t nb_task_theft):
         theft_id(theft_id),
         context_id(context_id),
         session_id(session_id),
@@ -82,9 +82,9 @@ struct theft_info{
     gaspi_rank_t victim;
     gaspi_rank_t tasks_owner;
         
-    dlb_int theft_status;
+    TITUS_DLB_int theft_status;
     size_t nb_task_theft;
-    dlb_int first_task_id;
+    TITUS_DLB_int first_task_id;
     
     void print(std::ostream & out = std::cout,bool one_line_print = false)const;
 };
@@ -94,8 +94,8 @@ static inline std::ostream & operator << (std::ostream & out, const theft_info &
     return out;
 }
 
-struct DLB_session_info{
-    DLB_session_info();
+struct TITUS_DLB_session_info{
+    TITUS_DLB_session_info();
     // SESSION
     uint64_t session_start;
     uint64_t session_end;
@@ -155,10 +155,10 @@ struct DLB_session_info{
     uint64_t last_parallel_work_session_start;
     
     uint64_t session_time;
-    DLB_session_info & operator+=(DLB_session_info & arg);
+    TITUS_DLB_session_info & operator+=(TITUS_DLB_session_info & arg);
     void print(std::ostream & out = std::cout)const;
 };
-static inline std::ostream & operator<<(std::ostream & out, const DLB_session_info & arg) {
+static inline std::ostream & operator<<(std::ostream & out, const TITUS_DLB_session_info & arg) {
     arg.print(out);
     return out;
 }
@@ -237,12 +237,12 @@ static inline std::ostream & operator<<(std::ostream & out, const theft_info_buf
     return out;
 }
 
-class DLB_Logger_impl{
-    DLB_Context_impl * context;
+class TITUS_DLB_Logger_impl{
+    TITUS_DLB_Context_impl * context;
     
-    std::list<DLB_session_info*> sessions;
-    DLB_session_info * current_session;
-    DLB_session_info agregated_sessions;
+    std::list<TITUS_DLB_session_info*> sessions;
+    TITUS_DLB_session_info * current_session;
+    TITUS_DLB_session_info agregated_sessions;
     
     static uint64_t now_rdtsc() {return ((double) rdtsc()) / ((double)TITUS_PROC_FREQ / 1e9);}
     static uint64_t now_gtod() {struct timeval tv;gettimeofday(&tv,0);return tv.tv_sec * 1e9 + tv.tv_usec * 1000;}
@@ -254,14 +254,14 @@ class DLB_Logger_impl{
     theft_info_buffer buffer;
 
 public:
-    DLB_Logger_impl(DLB_Context_impl * arg, bool log_all = true, size_t local_buffer_size_in_bytes = DLB_LOGGER_THEFT_BUFFER_SIZE,bool use_rdtsc = true, bool autodump = false);
-    ~DLB_Logger_impl() {
+    TITUS_DLB_Logger_impl(TITUS_DLB_Context_impl * arg, bool log_all = true, size_t local_buffer_size_in_bytes = TITUS_DLB_LOGGER_THEFT_BUFFER_SIZE,bool use_rdtsc = true, bool autodump = false);
+    ~TITUS_DLB_Logger_impl() {
     }
 
     void print_current_session(std::ostream & out = std::cout) const {current_session->print(out);}
 
     void print_all_sessions(std::ostream & out = std::cout) const {
-        for (std::list<DLB_session_info*>::const_iterator it = sessions.begin(); it != sessions.end() ; it ++){
+        for (std::list<TITUS_DLB_session_info*>::const_iterator it = sessions.begin(); it != sessions.end() ; it ++){
             (*it)->print(out);
             out << std::endl;
 		}
@@ -280,12 +280,12 @@ public:
     void set_autodump(bool val, std::ostream & output = TITUS_DBG);
     void set_autodump(bool val, const char *logdir);
     
-    // notification types (in DLB)
+    // notification types (in TITUS_DLB)
     
     // INIT AND WORK SPAWNING
-    // debut de session de travail (DLB_work)
-    void signal_start_DLB_session();
-    void signal_end_DLB_session();
+    // debut de session de travail (TITUS_DLB_work)
+    void signal_start_TITUS_DLB_session();
+    void signal_end_TITUS_DLB_session();
 
     // ajout de tâches
     // nb task
@@ -334,7 +334,7 @@ public:
     // etat de la cible du vol
     // cible vol
     // nb tache volées
-    void signal_end_theft(dlb_int theft_status, size_t nb_task_theft, dlb_int first_task_id, gaspi_rank_t target_rank, gaspi_rank_t owner);
+    void signal_end_theft(TITUS_DLB_int theft_status, size_t nb_task_theft, TITUS_DLB_int first_task_id, gaspi_rank_t target_rank, gaspi_rank_t owner);
     
 	// RETURN RESULTS
 	void signal_start_return_results();
@@ -358,4 +358,4 @@ public:
     
 };
 
-#endif //__DLB_LOGGER_H__
+#endif //__TITUS_DLB_LOGGER_H__
