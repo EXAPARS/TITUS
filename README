@@ -2,6 +2,7 @@
 # This file is part of the TITUS software.
 # https://github.com/exapars/TITUS
 # Copyright (c) 2015-2016 University of Versailles UVSQ
+# Copyright (c) 2017 Bull SAS
 #
 # TITUS  is a free software: you can redistribute it and/or modify  
 # it under the terms of the GNU Lesser General Public License as   

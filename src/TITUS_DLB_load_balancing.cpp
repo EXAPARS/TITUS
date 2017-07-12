@@ -1,7 +1,8 @@
 /* 
 * This file is part of the TITUS software.
 * https://github.com/exapars/TITUS
-* Copyright (c) 2015-2016 University of Versailles UVSQ
+* Copyright (c) 2015-2017 University of Versailles UVSQ
+* Copyright (c) 2017 Bull SAS
 *
 * TITUS  is a free software: you can redistribute it and/or modify  
 * it under the terms of the GNU Lesser General Public License as   
@@ -140,16 +141,18 @@ void TITUS_DLB_impl::parallel_work(uint64_t timeout_ms)
                 assert(context->get_metadata_task()->is_empty());
                 assert(context->get_metadata_tmp()->is_empty());
                 assert(context->get_metadata_result()->is_empty());
-                if (timeout_ms != 0){
-					pthread_kill(kill_me_later_args.killer_thread,SIGKILL);
-				}
+                
+                gaspi_number_t qsize;
+				SUCCESS_OR_DIE(gaspi_queue_size(context->segment_task,&qsize)); ASSERT(qsize == 0);
+				SUCCESS_OR_DIE(gaspi_queue_size(context->segment_result,&qsize)); ASSERT(qsize == 0);
+				SUCCESS_OR_DIE(gaspi_queue_size(context->segment_tmp,&qsize)); ASSERT(qsize == 0);
+				std::cout << "context->segment_scratch = " << (uint) context->segment_scratch << std::endl;
+				SUCCESS_OR_DIE(gaspi_queue_size(context->segment_scratch,&qsize)); ASSERT(qsize == 0);
                 return;
             default:
                 //assert state not known
                 assert(0);
         }
     }
-  
-
 }
 

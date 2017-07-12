@@ -1,7 +1,8 @@
 /* 
 * This file is part of the TITUS software.
 * https://github.com/exapars/TITUS
-* Copyright (c) 2015-2016 University of Versailles UVSQ
+* Copyright (c) 2015-2017 University of Versailles UVSQ
+* Copyright (c) 2017 Bull SAS
 *
 * TITUS  is a free software: you can redistribute it and/or modify  
 * it under the terms of the GNU Lesser General Public License as   
@@ -407,7 +408,7 @@ int main(int argc, char **argv)
 
     uint64_t before_set_problem = rdtsc();
 
-    context->set_problem((void *) &array_problem[0], task_size, nb_task.first,(void *) &array_result[0], sizeof(int), solve_task,0);
+    context->set_problem((void *) &array_problem[0], task_size, nb_task.first,(void *) &array_result[0], sizeof(int), solve_task, nullptr);
     
     uint64_t after_set_problem = rdtsc();
 

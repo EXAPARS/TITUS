@@ -1,7 +1,8 @@
 /* 
 * This file is part of the TITUS software.
 * https://github.com/exapars/TITUS
-* Copyright (c) 2015-2016 University of Versailles UVSQ
+* Copyright (c) 2015-2017 University of Versailles UVSQ
+* Copyright (c) 2017 Bull SAS
 *
 * TITUS  is a free software: you can redistribute it and/or modify  
 * it under the terms of the GNU Lesser General Public License as   
@@ -234,17 +235,6 @@ void TITUS_DLB_impl::barrier_status::first_barrier_handshake_protocol(){
 
 
 // notifications based barrier using a b-tree with infixed numerotation (as in sorted b-tree)
-// if not root {
-//   if leaf {
-//     nodes in the tree wait for their children notification before notifying their parent
-//   }
-//   children notify their parent using [left|right]_child_notification_id if they are [left|right] child and my rank+1 as value (so that rank 0 uses a valid value)
-// }
-// if not root {
-//   waits for the notifications from its chilren 
-// }
-// notify children using parent notification_id and my rank as value
-// end barrier
 gaspi_return_t TITUS_DLB_impl::barrier_status::barrier(gaspi_timeout_t timeout){
 	// init instance fields and handshake if first barrier for this group.
 	init_barrier();

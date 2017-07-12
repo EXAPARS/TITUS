@@ -1,7 +1,8 @@
 /* 
 * This file is part of the TITUS software.
 * https://github.com/exapars/TITUS
-* Copyright (c) 2015-2016 University of Versailles UVSQ
+* Copyright (c) 2015-2017 University of Versailles UVSQ
+* Copyright (c) 2017 Bull SAS
 *
 * TITUS  is a free software: you can redistribute it and/or modify  
 * it under the terms of the GNU Lesser General Public License as   
@@ -396,7 +397,6 @@ BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::try_push
 	int i = 0, elt_i = 0;
 	gaspi_offset_t scratch_segment_head = sizeof(BufferedSegmentMetadata);
 	size_t results_pushed_count = 0;
-	const void * scratch_segment_ptr = ctx->ptr_segment_scratch;
 	for (auto it = begin; it != end ; it ++){
 		if (r.selected[i]){
 			auto elt_ptr = it->second.second;
@@ -404,7 +404,7 @@ BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::try_push
 			// local data location information : depends on wether the data is on segment or in local memory
 			if (it->second.first == (gaspi_segment_id_t)-1){
 				// copy element to scratch segment for remote write
-				BufferElt * new_elt_on_scratch = (BufferElt*)ADD_PTR(scratch_segment_ptr,scratch_segment_head);
+				BufferElt * new_elt_on_scratch = (BufferElt*)ADD_PTR(ctx->ptr_segment_scratch,scratch_segment_head);
 				gaspi_offset_t new_elt_offset = scratch_segment_head;
 				scratch_segment_head += elt_ptr->buffer_entry_size();
 				memcpy(new_elt_on_scratch, elt_ptr, elt_ptr->buffer_entry_size());
