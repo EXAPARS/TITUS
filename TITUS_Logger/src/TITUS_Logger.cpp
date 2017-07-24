@@ -197,7 +197,7 @@ TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::TITUS_Logger_Entry_Timer_ns_pow
 {
 	if (arg != nullptr) arg->add_entry(this);
 	assert(power > 1);
-	std::cout << "new TITUS_Logger_Entry_pow_histogram : start = " << start << ", power = " << power << std::endl;
+	//~ std::cout << "new TITUS_Logger_Entry_pow_histogram : start = " << start << ", power = " << power << std::endl;
 }
 
 
@@ -217,6 +217,9 @@ TITUS_Logger_Entry_base * TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::clone
 
 template <size_t size>
 void TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::start(){
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.start();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 	auto t = TITUS_Logger::now();
 	if (last_start > last_stop){
 		uint64_t dt = t - last_start;
@@ -224,10 +227,17 @@ void TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::start(){
 		*this += dt;
 	}
 	last_start = t;
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.stop();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 }
 
 template <size_t size>
 void TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::stop(){
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.start();
+	#endif //_MEASURE_LOGGER_OVERHEAD
+	
 	auto t = TITUS_Logger::now();
 	if (last_start > last_stop){
 		uint64_t dt = t - last_start;
@@ -235,6 +245,10 @@ void TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::stop(){
 		*this += dt;
 	}
 	last_stop = t;
+
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.stop();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 }
 
 template <size_t size>
@@ -269,6 +283,59 @@ void TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::print(std::ostream & out, 
 
 
 
+#ifdef _MEASURE_LOGGER_OVERHEAD
+
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::start(){ // override start and stop to avoid infinite recursive call
+	auto t = TITUS_Logger::now();
+	if (TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_start > TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_stop){
+		uint64_t dt = t - TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_start;
+		TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::histogram.insert(TITUS_Logger::to_ns(dt));
+		*this += dt;
+	}
+	TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_start = t;
+}
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::stop(){ // override start and stop to avoid infinite recursive call
+	auto t = TITUS_Logger::now();
+	if (TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_start > TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_stop){
+		uint64_t dt = t - TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_start;
+		TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::histogram.insert(TITUS_Logger::to_ns(dt));
+		*this += dt;
+	}
+	TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::last_stop = t;
+}
+
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+Logger_Overhead_Timer<size>::Logger_Overhead_Timer(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start)
+	: TITUS_Logger_Entry_Timer_ns_pow_histogram<size>(arg,name,power,start)
+{
+}
+
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+Logger_Overhead_Timer<size>::Logger_Overhead_Timer(const Logger_Overhead_Timer & arg) // copy constructor
+	: TITUS_Logger_Entry_Timer_ns_pow_histogram<size>(arg)
+{
+	
+}
+
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+TITUS_Logger_Entry_base * Logger_Overhead_Timer<size>::clone()const{
+	return new Logger_Overhead_Timer<size>(*this);
+}
+
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::reset(){return TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::reset();}
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::finalize(){return TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::finalize();} // a chance to ensures consistency before printing
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::aggregate(const TITUS_Logger_Entry_base & arg){return TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::aggregate(arg);} // add the value of the counter in argument to this
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+const std::string Logger_Overhead_Timer<size>::get_name()const {return TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::get_name();}
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+void Logger_Overhead_Timer<size>::print(std::ostream & out, const std::string & prefix)const {return TITUS_Logger_Entry_Timer_ns_pow_histogram<size>::print(out, prefix);}
+
+#endif //_MEASURE_LOGGER_OVERHEAD
 
 
 
@@ -342,8 +409,14 @@ void SpinLock::unlock(){
 TITUS_Logger::TITUS_Logger()
 	:session_time(this,"session_time")
 {
-	
+	add_entry(&time_spent_logging);
 }
+
+#ifdef _MEASURE_LOGGER_OVERHEAD
+Logger_Overhead_Timer<10> TITUS_Logger::time_spent_logging(nullptr, "logger_overhead", 10.0);
+#endif //_MEASURE_LOGGER_OVERHEAD
+
+
 
 void TITUS_Logger::start_session(){
 	session_time.start();
@@ -492,14 +565,26 @@ void TITUS_Logger_Entry_Timer_ns::print(std::ostream & out, const std::string & 
 // - start was used after start
 // - stop was used after start
 void TITUS_Logger_Entry_Timer_ns::start(){
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.start();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 	auto t = TITUS_Logger::now(); 
 	if (last_start > last_stop) *this += t - last_start;
 	last_start = t;
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.stop();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 }
 void TITUS_Logger_Entry_Timer_ns::stop(){
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.start();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 	auto t = TITUS_Logger::now(); 
 	if (last_start > last_stop) *this += t - last_start;
 	last_stop = t;
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	TITUS_Logger::time_spent_logging.stop();
+	#endif //_MEASURE_LOGGER_OVERHEAD
 }
 
 //~ uint64_t TITUS_Logger_Entry_Timer_ns::operator(uint64_t)const {return count;}

@@ -29,6 +29,7 @@
 
 #include <rdtsc.h>
 
+//~ #define _MEASURE_LOGGER_OVERHEAD
 
 class TITUS_Logger;
 
@@ -54,7 +55,7 @@ static std::ostream & operator << (std::ostream & out, const TITUS_Logger_Entry_
 }
 
 // virtual base class for const-named logger entries
-class TITUS_Logger_Entry_named : protected TITUS_Logger_Entry_base{
+class TITUS_Logger_Entry_named : public TITUS_Logger_Entry_base{
 	const std::string name;
 public :
 	TITUS_Logger_Entry_named(TITUS_Logger * arg, const std::string & name);
@@ -71,7 +72,7 @@ public :
 
 
 template <typename counter_t>
-class TITUS_Logger_Entry_counter : protected TITUS_Logger_Entry_named{
+class TITUS_Logger_Entry_counter : public TITUS_Logger_Entry_named{
 protected :
 	counter_t init_val;
 	counter_t count;
@@ -93,6 +94,7 @@ public :
 // base histogram class
 template <typename value_t, size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
 class TITUS_Logger_pow_histogram{
+protected:
 	const double power;
 	const value_t start;
 	std::array<value_t, size> histogram;
@@ -108,7 +110,7 @@ public :
 };
 
 template <typename value_t, size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
-class TITUS_Logger_Entry_pow_histogram : public TITUS_Logger_Entry_named, TITUS_Logger_pow_histogram<value_t, size>{
+class TITUS_Logger_Entry_pow_histogram : public TITUS_Logger_Entry_named, public TITUS_Logger_pow_histogram<value_t, size>{
 public :
 	TITUS_Logger_Entry_pow_histogram(TITUS_Logger * arg, const std::string & name, double power, const value_t & start);
 	TITUS_Logger_Entry_pow_histogram(const TITUS_Logger_Entry_pow_histogram & arg); // copy constructor
@@ -122,7 +124,7 @@ public :
 };
 
 
-class TITUS_Logger_Entry_Timer_ns : protected TITUS_Logger_Entry_counter<TITUS_Logger_raw_time_t>{
+class TITUS_Logger_Entry_Timer_ns : public TITUS_Logger_Entry_counter<TITUS_Logger_raw_time_t>{
 protected :
 	TITUS_Logger_raw_time_t last_start;
 	TITUS_Logger_raw_time_t last_stop;
@@ -152,10 +154,11 @@ public :
 
 
 template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
-class TITUS_Logger_Entry_Timer_ns_pow_histogram : protected TITUS_Logger_Entry_Timer_ns{
+class TITUS_Logger_Entry_Timer_ns_pow_histogram : public TITUS_Logger_Entry_Timer_ns{
+protected:
 	TITUS_Logger_pow_histogram<uint64_t, size> histogram; //in ns
 public :
-	TITUS_Logger_Entry_Timer_ns_pow_histogram(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start = 0);
+	TITUS_Logger_Entry_Timer_ns_pow_histogram(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start = 1);
 	TITUS_Logger_Entry_Timer_ns_pow_histogram(const TITUS_Logger_Entry_Timer_ns_pow_histogram & arg); // copy constructor
 	virtual TITUS_Logger_Entry_base * clone()const;
 
@@ -169,7 +172,22 @@ public :
 	virtual void print(std::ostream & out = std::cout, const std::string & prefix = "")const;
 };
 
+template <size_t size> // log(value_t) must exist and return something that can be casted to an unsigned integer for addressing in the histogram
+class Logger_Overhead_Timer: public TITUS_Logger_Entry_Timer_ns_pow_histogram<size>{
+	public:
+	Logger_Overhead_Timer(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start = 1);
+	Logger_Overhead_Timer(const Logger_Overhead_Timer & arg); // copy constructor
+	virtual TITUS_Logger_Entry_base * clone()const;
 
+	void start(); // just override start and stop to avoid infinite recursive call
+	void stop(); // just override start and stop to avoid infinite recursive call
+
+	virtual void reset();
+	virtual void finalize(); // a chance to ensures consistency before printing
+	virtual void aggregate(const TITUS_Logger_Entry_base & arg); // add the value of the counter in argument to this
+	virtual const std::string get_name()const;
+	virtual void print(std::ostream & out = std::cout, const std::string & prefix = "")const;
+};
 
 // from http://anki3d.org/spinlock/
 class SpinLock
@@ -189,6 +207,10 @@ class TITUS_Logger{
 	std::vector<TITUS_Logger_session_t> previous_sessions;
 	TITUS_Logger_Entry_Timer_ns session_time;
 public:
+	#ifdef _MEASURE_LOGGER_OVERHEAD
+	static Logger_Overhead_Timer<10> time_spent_logging;
+	#endif //_MEASURE_LOGGER_OVERHEAD
+
 	TITUS_Logger();
 	void add_entry(TITUS_Logger_Entry_base * arg);
 	

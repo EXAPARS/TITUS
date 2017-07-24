@@ -170,7 +170,7 @@ mrproper:
 	make -C victim_selector/ mrproper
 
 tarball: mrproper
-	rm -f TITUS_DLB_Library.tar.gz
-	tar -czf TITUS_DLB_Library.tar.gz .
+	rm -f ../TITUS_DLB_Library.tar.gz
+	tar -czf ../TITUS_DLB_Library.tar.gz .
 
 .PHONY: all lib tests run clean cleanall mrproper tarball libDVS
