@@ -197,12 +197,12 @@ void solve_task(void *task, void *result, void * unused_params)
     t = (int *)task;
     r=0;
 
-    t1 = now();
+    t1 = TITUS_Logger::to_ns(TITUS_Logger::now()) / 1e9;
     
     for(int j=0 ; j<10 ; ++j)
         r = r + t[j];
     
-    do { t2 = now(); }
+    do { t2 = TITUS_Logger::to_ns(TITUS_Logger::now()) / 1e9; }
     while( (t2-t1)<TASK_TIME );  // active wait until TASK_TIME us timeout is reached
     
     res = (int *)result;
@@ -445,7 +445,7 @@ int main(int argc, char **argv)
     SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
 
     time_so_far = (rdtsc() - rdtsc_start) / (TITUS_PROC_FREQ / 1000);
-    TITUS_DBG << "time_so_far = " << time_so_far << " ms, ";
+    TITUS_DBG << "time_so_far = " << time_so_far << " ms, " << std::endl;
     TITUS_DBG << "parallel_work_time = " << parallel_work_time << " ms" << std::endl;
 	//TITUS_DBG.flush();
 
@@ -461,27 +461,26 @@ int main(int argc, char **argv)
     std::stringstream outname("");
     outname << "logs_" << std::setfill('0') << std::setw(4) << rank << ".out";
     std::ostream * out = new std::ofstream(outname.str().c_str());
-    context->get_logger()->print_agregated_session_info(*out); // in logdir
+    context->get_logger()->print_aggregated_sessions(*out); // in logdir
     //context->get_logger()->dump_buffer(); // ensure full log dump in log dir
 	
 	if (rank == 0){
 		std::stringstream report_str("");
-		report_str << "core_freq_mhz="<< (int) (TITUS_PROC_FREQ / 1000000) << ";";
-		report_str << "echo \"## Assuming constant clock frequency @ $core_freq_mhz Mhz\";";
+		report_str << "echo \"## Assuming constant clock frequency @ 2600 MHz\" ;";
 		report_str << "working=`cat logs_* | grep time_spent_solving_tasks | cut -d':' -f2 | xargs | tr ' ' '+' | bc | xargs | tr ' ' '+' | bc` ;";
-		report_str << "ms_working=`echo \"$working / ($core_freq_mhz * 1000)\" | bc` ;";
-		report_str << "echo \"total_work_time = $ms_working ms\" ;";
-		report_str << "session_time=`cat logs_* | grep parallel_work_session_time | cut -d':' -f2 | sort -n | tail -n1` ;" ;
-		report_str << "ms_session_time=`echo \"$session_time / ($core_freq_mhz * 1000)\" | bc` ;";
-		report_str << "echo \"session_time = $ms_session_time ms\";";
-		report_str << "proc_count=`ls -1 logs_* | wc -l`;";
-		report_str << "echo \"proc_count = $proc_count\";";
-		report_str << "echo \"efficiency = `echo \"$ms_working * 100 / $ms_session_time / $proc_count\" | bc`%\";";
+		report_str << "ms_working=`echo $working / 1000000 | bc` ;";
+		report_str << "echo total_work_time = $ms_working ms ;";
+		report_str << "session_time=`cat logs_* | grep parallel_work_session_time | cut -d':' -f2 | sort -n | tail -n1` ;";
+		report_str << "ms_session_time=`echo $session_time / 1000000 | bc` ;";
+		report_str << "echo session_time = $ms_session_time ms;";
+		report_str << "proc_count=`ls -1 logs_* | wc -l` ;";
+		report_str << "echo proc_count = $proc_count ;";
+		report_str << "echo efficiency = `echo \"$ms_working * 100 / $ms_session_time / $proc_count\" | bc`% ;";
 		std::system(report_str.str().c_str());
 	}
 
 	TITUS_DBG << "calling gaspi_proc_term" << std::endl;
-    ASSERT( gaspi_proc_term(GASPI_BLOCK) == GASPI_SUCCESS );
+    SUCCESS_OR_DIE( gaspi_proc_term(GASPI_BLOCK) );
 	TITUS_DBG << "gaspi_proc_term terminated" << std::endl;
 
 

@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include <TITUS_DLB_gaspi_tools.hpp>
-#include "TITUS_DLB_logger.hpp"
 #include "TITUS_DLB_context.hpp"
 
 #ifdef DEBUG

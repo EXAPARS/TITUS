@@ -25,7 +25,7 @@
 #include <TITUS_DLB_gaspi_tools.hpp>
 #include "TITUS_DLB_internal.hpp"
 #include "TITUS_DLB_context.hpp"
-#include "TITUS_DLB_logger.hpp"
+//#include <TITUS_logger.hpp>
 
 
 TITUS_DLB_int TITUS_DLB_impl::load_balancing()
@@ -101,10 +101,8 @@ void TITUS_DLB_impl::parallel_work(uint64_t timeout_ms)
 		ASSERT(context != nullptr);
 	}
     TITUS_DLB_int state;
-    DEBUG_PRINT("context=%d\n",context);
-    context->logger.signal_start_parallel_work_session();
+    context->parallel_work_session_time.start();
     
-    DEBUG_PRINT("active signal_start_parallel_work_session\n");
     if((context->ptr_dequeue->tail - context->ptr_dequeue->head) > 0)        state = WORKER;
     else                                                                    state = THIEF;
 
@@ -132,8 +130,8 @@ void TITUS_DLB_impl::parallel_work(uint64_t timeout_ms)
                 break;
             case FINISHED:
 				if (timeout_ms != 0) pthread_kill(kill_me_later_args.killer_thread, SIGKILL);
-                context->logger.signal_end_parallel_work_session();
-                context->logger.signal_end_TITUS_DLB_session();
+                context->parallel_work_session_time.stop();
+                context->logger.end_session();
                 context->reset();
                 
                 // tauto check

@@ -28,7 +28,6 @@
 #include "TITUS_DLB_internal.hpp"
 #include <cassert>
 #include <TITUS_DLB_gaspi_tools.hpp>
-#include "TITUS_DLB_logger.hpp"
 
 
 pthread_t TITUS_DLB_main_thread_id;
@@ -212,7 +211,7 @@ void print_stacktrace_and_quit(int sig){
 	TITUS_DLB::get_context()->get_logger()->print_all_sessions(*out);
 
 	TITUS_DLB_Context * TITUS_DLB_ctx = TITUS_DLB::get_context();
-	TITUS_DLB_ctx->get_logger()->m_impl->signal_end_parallel_work_session();
+	TITUS_DLB_ctx->get_logger()->end_session();
 	if (TITUS_DLB_ctx != nullptr)  TITUS_DBG << *TITUS_DLB_ctx;
 	//TITUS_DBG << std::endl;
 	TITUS_DBG.flush();

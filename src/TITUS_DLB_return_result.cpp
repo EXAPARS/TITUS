@@ -34,7 +34,7 @@ void TITUS_DLB_impl::return_result() {
 
 // returns results in the tmp segment into the results segment of the destination selected by DVS as the next in the route to the owner of the tasks that generated those results.
 void TITUS_DLB_impl::return_results_buffered() {
-	get_context()->get_logger()->signal_start_return_results();
+	get_context()->time_spent_returning_results.start();
 	//~ TITUS_DBG << "in TITUS_DLB_impl::return_results_buffered" << std::endl;
 
 	//get_context()->get_metadata_result()->try_push_local_transiting_results();
@@ -52,7 +52,7 @@ void TITUS_DLB_impl::return_results_buffered() {
 			get_context()->get_metadata_result()->try_flush_buffer_elts_packed();
 		}
 	}
-	get_context()->get_logger()->signal_end_return_results();
+	get_context()->time_spent_returning_results.stop();
 }
 
 
@@ -65,10 +65,9 @@ void TITUS_DLB_impl::return_results_buffered() {
 // does not support results routing through small world neighboring.
 void TITUS_DLB_impl::return_result_simple()
 {
-	get_context()->get_logger()->signal_start_return_results();
+	get_context()->time_spent_returning_results.start();
 
     TITUS_DLB_int t1, t2;
-    t1 = rdtsc(); //! TODO : add signal
     //DEBUG_PRINT("=====================TITUS_DLB::return_result====================\n");
     MetadataTmp *t;
     t = context->get_metadata_tmp();
@@ -92,9 +91,6 @@ void TITUS_DLB_impl::return_result_simple()
     SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, 0, t->owner_result_rank, (gaspi_atomic_value_t)t->nb_result, &value_old, TITUS_DLB_GASPI_TIMEOUT));
     DEBUG_PRINT("gaspi_atomic_fetch_add (seg_src[%llu], off[0], rank[%llu], nb_result[%llu], value_old[%llu]))\n",context->segment_result, t->owner_result_rank, t->nb_result, value_old);
 
-    t2 = rdtsc(); //! TODO : add signal
-    context->task_result_counter += (t2-t1);
-
-	get_context()->get_logger()->signal_end_return_results();
+	get_context()->time_spent_returning_results.stop();
 }
 

@@ -32,37 +32,15 @@
 typedef unsigned long int TITUS_DLB_int;
 
 class TITUS_DLB_Context;
-class TITUS_DLB_Logger;
 
 #include <GASPI.h>
 #include "TITUS_DLB_gaspi_tools.hpp"
 #include <DVS.hpp>
+#include <TITUS_Logger.hpp>
 
 // proper library use
 
 class TITUS_DLB_Context_impl;
-class TITUS_DLB_Logger_impl;
-
-class TITUS_DLB_Logger{
-    TITUS_DLB_Logger_impl * m_impl;
-public :
-    TITUS_DLB_Logger(TITUS_DLB_Logger_impl * arg):m_impl(arg) {} //implicit conversion
-    TITUS_DLB_Logger(const TITUS_DLB_Logger & arg); // TODO : (NYI) clone logger
-
-    int get_some_metric();
-    void activate_some_metric();
-    void print_current_session(std::ostream & out = std::cout)const;
-    void print_agregated_session_info(std::ostream & out = std::cout)const;
-    void print_all_sessions(std::ostream & out = std::cout)const;
-
-    
-    void dump_buffer();
-    void print_buffer(std::ostream & out)const;
-    void set_autodump(bool val, std::ostream & out = TITUS_DBG); // cannot be called before gaspi_proc_init()
-    void set_autodump(bool val, const char *logdir);
-
-    friend void print_stacktrace_and_quit(int);
-};
 
 class TITUS_DLB{
 public :
@@ -94,7 +72,7 @@ public :
     
     void set_problem(void *problem, int task_size, int nb_task, void *result, int result_size, void (*ptr_task_function)(void*, void*, void*), void * params);    
 
-    TITUS_DLB_Logger * get_logger();
+    TITUS_Logger * get_logger();
     DVS_Context * get_DVS_context();
     void set_DVS_context(DVS_Context * arg);
     TITUS_DLB_int get_rank()const;

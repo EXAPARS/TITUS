@@ -25,7 +25,6 @@
 #include <GASPI.h>
 #include <TITUS_DLB_gaspi_tools.hpp>
 #include <TITUS_DLB.hpp>
-#include "TITUS_DLB_logger.hpp"
 #include "TITUS_DLB_internal.hpp"
 #include "TITUS_DLB_segment_metadata.hpp"
 
@@ -88,7 +87,7 @@ public :
 //    void set_algorithm(TITUS_DLB::Algorithm arg);
 //    TITUS_DLB::Algorithm get_algorithm();
 	
-    TITUS_DLB_Logger_impl * get_logger() {return &logger;}
+    TITUS_Logger * get_logger() {return &logger;}
     DVS_Context * get_DVS_context() {return DVS_context;}
     void set_DVS_context(DVS_Context * arg) {DVS_context = arg; if (TITUS_DLB_impl::get_context() == this)DVS::set_context(arg);}
     
@@ -139,11 +138,62 @@ private :
     
     gaspi_topology_t gaspi_config_build_infrastructure;
     
-    TITUS_DLB_Logger_impl logger;
+    #define logger_histogram_start (TITUS_Logger::to_ns(1000)) //1µs
+    static const size_t logger_histogram_size = 8;
+    #define logger_histogram_pow ((double)10.0) //1µs
+    
+    TITUS_Logger logger;
+public : // can be accessed by others classes in the module
+    TITUS_Logger_Entry_Timer_ns parallel_work_session_time;
+	TITUS_Logger_Entry_Timer_ns init_problem_time;
+	TITUS_Logger_Entry_Timer_ns init_segment_time;
+    TITUS_Logger_Entry_counter<uint> spawned_tasks_count;
+    TITUS_Logger_Entry_Timer_ns time_spent_working;
+    TITUS_Logger_Entry_Timer_ns_pow_histogram<logger_histogram_size> time_spent_solving_tasks;
+    TITUS_Logger_Entry_counter<uint> solved_tasks_count;
+
+	TITUS_Logger_Entry_Timer_ns time_spent_moving_from_segment;
+	TITUS_Logger_Entry_counter<uint> tasks_moved_from_segment_count;
+	TITUS_Logger_Entry_Timer_ns time_spent_moving_from_dequeue;
+	TITUS_Logger_Entry_counter<uint> tasks_moved_from_dequeue_count;
+
+	template<size_t size>
+	class Logger_Entry_Time_spent_stealing:protected TITUS_Logger_Entry_Timer_ns{
+		// the inherited TITUS_Logger_Entry_Timer_ns serves to count the current theft attempt.
+		TITUS_Logger_Entry_counter<uint64_t> time_spent_stealing_hit; // times spent in hitting thefts in ns
+		TITUS_Logger_pow_histogram<uint64_t, size> hist_time_spent_stealing_hit;
+		TITUS_Logger_Entry_counter<uint64_t> time_spent_stealing_miss; // times spent in missing thefts in ns
+		TITUS_Logger_pow_histogram<uint64_t, size> hist_time_spent_stealing_miss;
+	public :	
+		Logger_Entry_Time_spent_stealing(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start = 0);
+		Logger_Entry_Time_spent_stealing(const Logger_Entry_Time_spent_stealing & arg); // copy constructor
+		virtual Logger_Entry_Time_spent_stealing * clone() const; // copy constructor
+		virtual void print(std::ostream & out = std::cout);
+		virtual void reset();
+		virtual void aggregate(const TITUS_Logger_Entry_base & arg); // add the value of the counter in argument to this
+		
+		void start();
+		void stop(bool theft_hit);// specifies the outcome of the theft attempt.
+	};
+	
+	TITUS_Logger_Entry_counter<uint> try_theft_count;
+	TITUS_Logger_Entry_counter<uint> hit_count;
+	TITUS_Logger_Entry_counter<uint> stolen_tasks_count;
+	TITUS_Logger_Entry_counter<uint> miss_notask_count;
+	TITUS_Logger_Entry_counter<uint> miss_target_locked_count;
+	TITUS_Logger_Entry_counter<uint> miss_free_for_copy;
+	TITUS_Logger_Entry_Timer_ns current_theft;
+	Logger_Entry_Time_spent_stealing<logger_histogram_size> time_spent_stealing;
+	
+	TITUS_Logger_Entry_Timer_ns_pow_histogram<logger_histogram_size> time_spent_returning_results;
+	TITUS_Logger_Entry_counter<uint> results_pushed_count;
+
+private :
+	
     DVS_Context * DVS_context;
     
     Dequeue *ptr_dequeue;
-
+	
     TITUS_DLB_int                 algorithm;
     TITUS_DLB_int (*ptr_algorithm_function)(gaspi_rank_t);
     
@@ -172,11 +222,6 @@ private :
     MetadataResult          *get_metadata_result() { return ((MetadataResult *)ptr_segment_result); }
     MetadataTmp             *get_metadata_tmp()    { return ((MetadataTmp *)ptr_segment_tmp);       }
 
-    
-    TITUS_DLB_int task_result_counter; //! TODO : move to logger
-    TITUS_DLB_int comm_send_counter; //! TODO : move to logger
-
-
     friend class TITUS_DLB_impl;
     friend class DVS_impl;
     friend struct Dequeue;
@@ -186,6 +231,8 @@ private :
     friend struct MetadataResult;
     friend struct MetadataTmp;
 };
+
+#include "TITUS_DLB_context.cpp"
 
 std::ostream & operator << (std::ostream & out , const TITUS_DLB_Context_impl & arg);
 //--------------------------------------------------------------

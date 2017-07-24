@@ -17,6 +17,9 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef __TITUS_DLB_CONTEXT_HPP__
+// normal compilation
+
 
 #include <GASPI.h>
 #include <cassert>
@@ -57,12 +60,33 @@
 // DEFAULT CONSTRUCTOR
 TITUS_DLB_Context_impl::TITUS_DLB_Context_impl():
     id(context_count++),
-    logger(this),
     algorithm(TITUS_DLB_DEFAULT_ALGORITHM),
     shared_task_segment_size(10000 + sizeof(MetadataTask)),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),
-    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
+    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr),
+    logger(),
+    parallel_work_session_time(&logger, "parallel_work_session_time"),
+	init_problem_time(&logger, "init_problem_time"),
+	init_segment_time(&logger, "init_segment_time"),
+    spawned_tasks_count(&logger, "spawned_tasks_count"),
+    time_spent_working(&logger, "time_spent_working"),
+    time_spent_solving_tasks(&logger, "time_spent_solving_tasks", logger_histogram_pow, logger_histogram_start),
+    solved_tasks_count(&logger, "solved_tasks_count"),
+	time_spent_moving_from_segment(&logger, "time_spent_moving_from_segment"),
+	tasks_moved_from_segment_count(&logger, "tasks_moved_from_segment_count"),
+	time_spent_moving_from_dequeue(&logger, "time_spent_moving_from_dequeue"),
+	tasks_moved_from_dequeue_count(&logger, "tasks_moved_from_dequeue_count"),
+	try_theft_count(&logger, "try_theft_count"),
+	hit_count(&logger, "hit_count"),
+	stolen_tasks_count(&logger, "stolen_tasks_count"),
+	miss_notask_count(&logger, "miss_notask_count"),
+	miss_target_locked_count(&logger, "miss_target_locked_count"),
+	miss_free_for_copy(&logger, "miss_free_for_copy"),
+	current_theft(&logger, "current_theft"),
+	time_spent_stealing(&logger, "time_spent_stealing", logger_histogram_pow, logger_histogram_start),
+	time_spent_returning_results(&logger, "time_spent_returning_results", logger_histogram_pow, logger_histogram_start),
+	results_pushed_count(&logger, "results_pushed_count")
 {
     TITUS_DLB_init_context();
     assert(check_status());
@@ -74,10 +98,32 @@ TITUS_DLB_Context_impl::TITUS_DLB_Context_impl():
 
 // SIMPLE CONSTRUCTOR
 TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(int shared_task_segment_size, int algorithm):
-    id(context_count++), logger(this), DVS_context(nullptr), algorithm(algorithm), shared_task_segment_size(shared_task_segment_size + sizeof(MetadataTask)),
+    id(context_count++), DVS_context(nullptr), algorithm(algorithm), shared_task_segment_size(shared_task_segment_size + sizeof(MetadataTask)),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),
-    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
+    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr),
+    logger(),
+    parallel_work_session_time(&logger, "parallel_work_session_time"),
+	init_problem_time(&logger, "init_problem_time"),
+	init_segment_time(&logger, "init_segment_time"),
+    spawned_tasks_count(&logger, "spawned_tasks_count"),
+    time_spent_working(&logger, "time_spent_working"),
+    time_spent_solving_tasks(&logger, "time_spent_solving_tasks", logger_histogram_pow, logger_histogram_start),
+    solved_tasks_count(&logger, "solved_tasks_count"),
+	time_spent_moving_from_segment(&logger, "time_spent_moving_from_segment"),
+	tasks_moved_from_segment_count(&logger, "tasks_moved_from_segment_count"),
+	time_spent_moving_from_dequeue(&logger, "time_spent_moving_from_dequeue"),
+	tasks_moved_from_dequeue_count(&logger, "tasks_moved_from_dequeue_count"),
+	try_theft_count(&logger, "try_theft_count"),
+	hit_count(&logger, "hit_count"),
+	stolen_tasks_count(&logger, "stolen_tasks_count"),
+	miss_notask_count(&logger, "miss_notask_count"),
+	miss_target_locked_count(&logger, "miss_target_locked_count"),
+	miss_free_for_copy(&logger, "miss_free_for_copy"),
+	current_theft(&logger, "current_theft"),
+	time_spent_stealing(&logger, "time_spent_stealing", logger_histogram_pow, logger_histogram_start),
+	time_spent_returning_results(&logger, "time_spent_returning_results", logger_histogram_pow, logger_histogram_start),
+	results_pushed_count(&logger, "results_pushed_count")
 {
     TITUS_DLB_init_context();
     assert(check_status());
@@ -86,10 +132,32 @@ TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(int shared_task_segment_size, int
 
 // FROM CONFIG FILE CONSTRUCTOR
 TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(const char * config_file_name):
-    id(context_count++),logger(this),
+    id(context_count++),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),
-    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
+    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr),
+    logger(),
+    parallel_work_session_time(&logger, "parallel_work_session_time"),
+	init_problem_time(&logger, "init_problem_time"),
+	init_segment_time(&logger, "init_segment_time"),
+    spawned_tasks_count(&logger, "spawned_tasks_count"),
+    time_spent_working(&logger, "time_spent_working"),
+    time_spent_solving_tasks(&logger, "time_spent_solving_tasks", logger_histogram_pow, logger_histogram_start),
+    solved_tasks_count(&logger, "solved_tasks_count"),
+	time_spent_moving_from_segment(&logger, "time_spent_moving_from_segment"),
+	tasks_moved_from_segment_count(&logger, "tasks_moved_from_segment_count"),
+	time_spent_moving_from_dequeue(&logger, "time_spent_moving_from_dequeue"),
+	tasks_moved_from_dequeue_count(&logger, "tasks_moved_from_dequeue_count"),
+	try_theft_count(&logger, "try_theft_count"),
+	hit_count(&logger, "hit_count"),
+	stolen_tasks_count(&logger, "stolen_tasks_count"),
+	miss_notask_count(&logger, "miss_notask_count"),
+	miss_target_locked_count(&logger, "miss_target_locked_count"),
+	miss_free_for_copy(&logger, "miss_free_for_copy"),
+	current_theft(&logger, "current_theft"),
+	time_spent_stealing(&logger, "time_spent_stealing", logger_histogram_pow, logger_histogram_start),
+	time_spent_returning_results(&logger, "time_spent_returning_results", logger_histogram_pow, logger_histogram_start),
+	results_pushed_count(&logger, "results_pushed_count")
 {
     TITUS_DLB_init_context();
     assert(check_status());
@@ -98,10 +166,33 @@ TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(const char * config_file_name):
 
 // CLONE CONTEXT CONSTRUCTOR
 TITUS_DLB_Context_impl::TITUS_DLB_Context_impl(const TITUS_DLB_Context_impl & arg):
-    id(context_count++), logger(this), DVS_context(nullptr), algorithm(arg.algorithm), shared_task_segment_size(arg.shared_task_segment_size),
+    id(context_count++), DVS_context(nullptr), algorithm(arg.algorithm), shared_task_segment_size(arg.shared_task_segment_size),
     shared_result_segment_size(0),shared_tmp_result_segment_size(0),shared_scratch_segment_size(0),
     segment_task(-1), segment_result(-1), segment_tmp(-1),segment_scratch(-1),
-    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr)
+    ptr_segment_result(nullptr), ptr_segment_tmp(nullptr), ptr_segment_scratch(nullptr),
+    logger(),
+    parallel_work_session_time(&logger, "parallel_work_session_time"),
+	init_problem_time(&logger, "init_problem_time"),
+	init_segment_time(&logger, "init_segment_time"),
+    spawned_tasks_count(&logger, "spawned_tasks_count"),
+    time_spent_working(&logger, "time_spent_working"),
+    time_spent_solving_tasks(&logger, "time_spent_solving_tasks", logger_histogram_pow, logger_histogram_start),
+    solved_tasks_count(&logger, "solved_tasks_count"),
+	time_spent_moving_from_segment(&logger, "time_spent_moving_from_segment"),
+	tasks_moved_from_segment_count(&logger, "tasks_moved_from_segment_count"),
+	time_spent_moving_from_dequeue(&logger, "time_spent_moving_from_dequeue"),
+	tasks_moved_from_dequeue_count(&logger, "tasks_moved_from_dequeue_count"),
+	try_theft_count(&logger, "try_theft_count"),
+	hit_count(&logger, "hit_count"),
+	stolen_tasks_count(&logger, "stolen_tasks_count"),
+	miss_notask_count(&logger, "miss_notask_count"),
+	miss_target_locked_count(&logger, "miss_target_locked_count"),
+	miss_free_for_copy(&logger, "miss_free_for_copy"),
+	current_theft(&logger, "current_theft"),
+	time_spent_stealing(&logger, "time_spent_stealing", logger_histogram_pow, logger_histogram_start),
+	time_spent_returning_results(&logger, "time_spent_returning_results", logger_histogram_pow, logger_histogram_start),
+	results_pushed_count(&logger, "results_pushed_count")
+    
 {
     TITUS_DLB_init_context();
     assert(check_status());
@@ -231,7 +322,7 @@ bool TITUS_DLB_Context_impl::check_status() {
 // *********************************************************************
 
 void TITUS_DLB_Context_impl::TITUS_DLB_init_segment(gaspi_segment_id_t segment_id, void ** local_mem_ptr, gaspi_size_t segment_size, bool use_simple_alloc){
-    logger.signal_start_segment_init();
+    init_segment_time.start();
 
     if (use_simple_alloc)
      { SUCCESS_OR_DIE( gaspi_segment_alloc(    segment_id,   segment_size,   GASPI_BLOCK)); }
@@ -239,7 +330,7 @@ void TITUS_DLB_Context_impl::TITUS_DLB_init_segment(gaspi_segment_id_t segment_i
      { SUCCESS_OR_DIE( gaspi_segment_create(   segment_id,   segment_size,   GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT)); }
     SUCCESS_OR_DIE( gaspi_segment_ptr ( segment_id, local_mem_ptr ));
     ASSERT(*local_mem_ptr != nullptr);
-    logger.signal_end_segment_init();
+    init_segment_time.stop();
 }
 
 static TITUS_DLB_sig_handler dummy_sig_handler;
@@ -249,7 +340,7 @@ void TITUS_DLB_Context_impl::TITUS_DLB_init_context() { //shared_task_segment_si
     //ASSERT(dummy_sig_handler.is_init());
 	//std::cout << "TITUS_DLB_Context_impl::TITUS_DLB_init_context : tid = " << pthread_self() << ", pid = " << getpid() << std::endl;
 	//TITUS_DBG << "TITUS_PROC_FREQ = " << TITUS_PROC_FREQ << std::endl; TITUS_DBG.flush();
-    logger.signal_start_TITUS_DLB_session(); // creating a session for logging context init time
+    logger.start_session();
     
     DEBUG_PRINT("=====================TITUS_DLB::init_library=====================\n");
     
@@ -329,7 +420,7 @@ void TITUS_DLB_Context_impl::TITUS_DLB_init_context() { //shared_task_segment_si
 	SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
     if (get_rank() == 0) std::cout << " ---------------- CONTEXT INIT DONE ON ALL RANKS  ---------------- " << std::endl;
     
-    logger.signal_end_TITUS_DLB_session();
+    logger.end_session();
     
 }
 
@@ -344,7 +435,7 @@ void TITUS_DLB_Context_impl::set_problem(void *problem, int task_size, int nb_ta
 	ASSERT(task_size > 0);
 	ASSERT(result_size > 0);
 	
-    logger.signal_start_TITUS_DLB_session();
+    logger.end_session();
 
     int first = 1;
     if(this->shared_result_segment_size == 0)    first = 0;
@@ -397,11 +488,8 @@ void TITUS_DLB_Context_impl::set_problem(void *problem, int task_size, int nb_ta
     //assert(this->shared_result_segment_size == ((this->shared_task_segment_size/task_size)*result_size + sizeof(MetadataResult)));
     //assert(this->shared_tmp_result_segment_size == (gaspi_size_t)((this->shared_task_segment_size/task_size)*result_size + sizeof(MetadataTmp)));
     
-    logger.signal_start_problem_init();
+    init_problem_time.start();
 
-    this->task_result_counter            = 0; //! TODO : move to logger
-    this->comm_send_counter              = 0; //! TODO : move to logger
-    
     //----------------------------------------------------------------------------------------------------------
     // Initialization Dequeue
     //----------------------------------------------------------------------------------------------------------
@@ -431,8 +519,8 @@ void TITUS_DLB_Context_impl::set_problem(void *problem, int task_size, int nb_ta
     assert( this->shared_tmp_result_segment_size >= (result_size + sizeof(MetadataTmp)) );
     assert( (TITUS_DLB_int)this->shared_task_segment_size >= (TITUS_DLB_int)(task_size + sizeof(MetadataTask)) );
     
-    logger.signal_end_problem_init();
-    logger.signal_tasks_spawned(nb_task);
+    init_problem_time.stop();
+    spawned_tasks_count += nb_task;
     
 		
     SUCCESS_OR_DIE( TITUS_DLB::gaspi_barrier (GASPI_GROUP_ALL, GASPI_BLOCK) );
@@ -532,8 +620,6 @@ void TITUS_DLB_Context_impl::print_state(std::ostream & out)const{
     out << "queue_task = " << (uint)queue_task << " (" << task_queue_size << "/" << queue_size_max << "), ";
     out << "queue_result = " << (uint)queue_result << " (" << result_queue_size << "/" << queue_size_max << "), ";
     out << "queue_scratch = " << (uint)queue_scratch << " (" << scratch_queue_size << "/" << queue_size_max << "), " << std::endl;
-    out << "task_result_counter = " << task_result_counter << ", ";
-    out << "comm_send_counter = " << comm_send_counter << ", " << std::endl;
 
     out << "ptr_segment_task = " << ptr_segment_task << ", ";
     out << "ptr_segment_result = " << ptr_segment_result << ", ";
@@ -541,3 +627,86 @@ void TITUS_DLB_Context_impl::print_state(std::ostream & out)const{
     out << "ptr_segment_scratch = " << ptr_segment_scratch << ", " << std::endl;
 	
 }
+
+#else // __TITUS_DLB_CONTEXT_HPP__
+
+// include template implementation from dlb_context_impl.hpp
+
+template<size_t size>
+TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::Logger_Entry_Time_spent_stealing(TITUS_Logger * arg, const std::string & name, double power, TITUS_Logger_raw_time_t start):
+	TITUS_Logger_Entry_Timer_ns(nullptr, name),
+	time_spent_stealing_hit(nullptr, name + "_hit"),
+	hist_time_spent_stealing_hit(power, start),
+	time_spent_stealing_miss(nullptr, name + "_miss"),
+	hist_time_spent_stealing_miss(power, start)
+	
+{
+	if (arg != nullptr) arg->add_entry(this);
+	assert(power > 1);
+}
+
+template<size_t size>
+TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::Logger_Entry_Time_spent_stealing(const Logger_Entry_Time_spent_stealing & arg) // copy constructor
+	: TITUS_Logger_Entry_Timer_ns(arg),
+	time_spent_stealing_hit(arg.time_spent_stealing_hit),
+	hist_time_spent_stealing_hit(arg.hist_time_spent_stealing_hit),
+	time_spent_stealing_miss(arg.time_spent_stealing_miss),
+	hist_time_spent_stealing_miss(arg.hist_time_spent_stealing_miss)
+{
+	
+}
+
+template<size_t size>
+TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size> * TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::clone() const{
+	return new TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>(*this);
+}
+
+template<size_t size>
+void TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::print(std::ostream & out){
+	time_spent_stealing_hit.print(out);
+	hist_time_spent_stealing_hit.print(out);
+	out << std::endl;
+	time_spent_stealing_miss.print(out);
+	hist_time_spent_stealing_miss.print(out);
+	out << std::endl;
+}
+
+template<size_t size>
+void TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::reset(){
+	TITUS_Logger_Entry_Timer_ns::reset();
+	time_spent_stealing_hit.reset();
+	time_spent_stealing_miss.reset();
+	hist_time_spent_stealing_hit.reset();
+	hist_time_spent_stealing_miss.reset();
+}
+
+template<size_t size>
+void TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::aggregate(const TITUS_Logger_Entry_base & arg){ // add the value of the counter in argument to this
+	TITUS_Logger_Entry_Timer_ns::aggregate(arg);
+	const TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size> & dynarg = (const TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size> & )arg;
+	time_spent_stealing_hit.aggregate(dynarg.time_spent_stealing_hit);
+	hist_time_spent_stealing_hit.aggregate(dynarg.hist_time_spent_stealing_hit);
+	time_spent_stealing_miss.aggregate(dynarg.time_spent_stealing_miss);
+	hist_time_spent_stealing_miss.aggregate(dynarg.hist_time_spent_stealing_miss);
+}
+
+template<size_t size>
+void TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::start(){
+	TITUS_Logger_Entry_Timer_ns::start();
+}
+
+template<size_t size>
+void TITUS_DLB_Context_impl::Logger_Entry_Time_spent_stealing<size>::stop(bool theft_hit){
+	TITUS_Logger_Entry_Timer_ns::stop();
+	if (theft_hit){
+		time_spent_stealing_hit += *this;
+		hist_time_spent_stealing_hit.insert(TITUS_Logger::to_ns(*this));
+	}
+	else{
+		time_spent_stealing_miss += *this;
+		hist_time_spent_stealing_miss.insert(TITUS_Logger::to_ns(*this));
+	}
+	TITUS_Logger_Entry_Timer_ns::reset(); // resets current theft timer;
+}
+
+#endif // __TITUS_DLB_CONTEXT_HPP__

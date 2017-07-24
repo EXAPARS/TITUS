@@ -17,65 +17,27 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+ifndef $(TITUS_DLB_HOME)
+	TITUS_DLB_HOME = .
+endif
+
+include Makefile.in
+
 #================================================================
 #       	lib CONFIGURATION
 #================================================================
-#! TODO : properly handle Clang too
-ifeq ($(USE_INTEL_COMPILER),true)
-    CC               = mpiicc -D__ICC 
-    CXX              = mpiicc -std=c++0x -D__ICC
-    MPICC            = mpiicc -D__ICC
-    MPICXX           = mpiicc -std=c++0x -D__ICC
-    F90              = mpiifort
-    #L_SUPC++         = -lsupc++
-    L_MATH           = -limf
-else
-    # user may export GCC_HAS_COLORING=true
-    ifeq ($(GCC_HAS_COLORING),true)
-        CC       = mpicc -fdiagnostics-color=always 
-        CXX      = mpicxx -std=c++0x -fdiagnostics-color=always 
-        MPICC    = mpicc -fdiagnostics-color=always 
-        MPICXX   = mpicxx -std=c++0x -fdiagnostics-color=always
-        F90      = mpif90
-    else
-        CC       = mpicc 
-        CXX      = mpicxx -std=c++0x 
-        MPICC    = mpicc 
-        MPICXX   = mpicxx -std=c++0x
-        F90      = mpif90
-    endif
-    L_SUPC++     = -lsupc++
-    L_MATH       = -lm
-endif
-
-TITUS_DLB_INC = -I$(TITUS_DLB_HOME)/include
-TITUS_DLB_LIB = -L$(TITUS_DLB_HOME)/lib -lTITUS_DLB
-
-DVS_HOME = $(TITUS_DLB_HOME)/victim_selector
-DVS_INC = -I$(DVS_HOME)/include
-DVS_LIB = -L$(DVS_HOME)/lib -lDVS
-
-GASPI_INC = -I$(GASPI_HOME)/include
-GASPI_LIB = -L$(GASPI_HOME)/lib64 -lGPI2-dbg
-
-UNWIND_INC = -I$(TITUS_DLB_HOME)/libunwind/include
-UNWIND_LIB = -L$(TITUS_DLB_HOME)/libunwind/include -lunwind
-
-DFLAGS 		= -g -O0 $(L_SUPC++)
-CFLAGS		= -fPIC -W -Wall -O2 -Wno-sign-compare -DMPI $(DFLAGS) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC) $(UNWIND_INC)
-IBVERBS_LIB		= -libverbs
-# GNU
-#CXXFLAGS	= -g -O0 -std=c++11
-#INTEL
-CXXFLAGS	= -fPIC -O2 -W -Wall -Wno-sign-compare $(DFLAGS) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC) $(UNWIND_INC)
-F90FLAGS	= -fPIC -O2 -cpp -free -warn all -stand f08 $(DFLAGS) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC)
-LDFLAGS		= -fPIC -shared $(DVS_LIB) $(GASPI_LIB) $(IBVERBS_LIB) $(UNWIND_LIB) -lpthread $(L_MATH) $(DFLAGS)
 
 SRC	:= $(wildcard src/*.cpp)
 OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
 FSRC := $(wildcard src/*.f90)
 FOBJ := $(patsubst src/%.f90, obj/%.f90.o, $(FSRC))
 MOD := $(patsubst src/%.f90, include/%.mod, $(FSRC))
+
+
+CFLAGS := $(CFLAGS) $(TITUS_LOGGER_INC) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC) $(UNWIND_INC)
+DFLAGS := $(DFLAGS) $(TITUS_LOGGER_LIB) $(DVS_LIB) $(GASPI_LIB) $(IBVERBS_LIB) $(UNWIND_LIB) -lpthread
+CXXFLAGS := $(TITUS_LOGGER_INC) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC) $(UNWIND_INC)
+F90FLAGS := $(TITUS_LOGGER_INC) $(TITUS_DLB_INC) $(DVS_INC) $(GASPI_INC)
 
 #================================================================
 #       	test CONFIGURATION
@@ -124,9 +86,11 @@ tests : $(tests)
 
 rebuild_lib:
 	make clean
-	make -C victim_selector clean
+	make -C $(DVS_HOME) clean
+	make -C $(TITUS_LOGGER_HOME) clean
 	make -j 4
-	make -j 4 -C victim_selector
+	make -j 4 -C $(DVS_HOME)
+	make -j 4 -C $(TITUS_LOGGER_HOME)
 	
 rebuild_tests: rebuild_lib
 	make tests
@@ -134,9 +98,12 @@ rebuild_tests: rebuild_lib
 DLB_Bench: tests/bin/DLB_Bench.bin
 
 libDVS:
-	+make -C victim_selector/ -j$(J)
+	+make -C $(DVS_HOME) -j$(J)
+	
+libTITUS_Logger:
+	+make -C $(TITUS_LOGGER_HOME) -j$(J)
 
-tests/bin/DLB_Bench.bin: tests/obj/DLB_Bench.o $(lib) libDVS
+tests/bin/DLB_Bench.bin: tests/obj/DLB_Bench.o $(lib) libDVS libTITUS_Logger
 	@mkdir -p tests/bin
 	$(MPICXX) -o $@ $<  $(TEST_LDFLAGS)
 
@@ -191,7 +158,8 @@ tests/obj/test_small_world_generation.o : tests/src/test_small_world_generation.
 #================================================================
 
 clean:
-	make -C victim_selector/ clean
+	make -C $(DVS_HOME) clean
+	make -C $(TITUS_LOGGER_HOME) clean
 	rm -rf *~ tests/bin/ tests/obj/ obj/ lib/ */*.mod
 
 cleanall: clean

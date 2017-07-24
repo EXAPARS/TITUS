@@ -28,7 +28,6 @@
 #include <TITUS_DLB_gaspi_tools.hpp>
 #include "TITUS_DLB_internal.hpp"
 #include "TITUS_DLB_context.hpp"
-#include "TITUS_DLB_logger.hpp"
 
 TITUS_DLB_int TITUS_DLB_impl::termination_detection()
 {
@@ -66,7 +65,7 @@ TITUS_DLB_int TITUS_DLB_impl::termination_detection()
 			r->termination_status.left_child_subtree_termination == 1L && r->termination_status.right_child_subtree_termination == 1L && 
 			subtree_termintion_reached == false)
     {
-        context->logger.signal_subtree_termination_detected();
+		TITUS_DBG << "TITUS_DLB_impl::termination_detection : subtree_termination_detected" << std::endl;
         subtree_termintion_reached = true;
         gaspi_atomic_value_t value_old;
     	//~ TITUS_DBG << "SUCCESS_OR_DIE( gaspi_atomic_fetch_add ("<<context->segment_result<<", "<<offset_child<<", "<<parent<<", "<<(gaspi_atomic_value_t)1<<", "<<&value_old<<", "<<TITUS_DLB_GASPI_TIMEOUT<<"));"<<std::endl; //TITUS_DBG.flush();
@@ -81,8 +80,8 @@ TITUS_DLB_int TITUS_DLB_impl::termination_detection()
 			r->termination_status.left_child_subtree_termination == 1L && r->termination_status.right_child_subtree_termination == 1L )
     {
 		assert(subtree_termintion_reached == false); // root does not change this value
-        context->logger.signal_subtree_termination_detected();
-        context->logger.signal_end_notification_received();
+		TITUS_DBG << "TITUS_DLB_impl::termination_detection : subtree_termination_detected" << std::endl;
+		TITUS_DBG << "TITUS_DLB_impl::termination_detection : end_notification_received" << std::endl;
         if(left_child>0){
 			gaspi_atomic_value_t value_old;
     		SUCCESS_OR_DIE( gaspi_atomic_fetch_add (context->segment_result, offset_termination, left_child, (gaspi_atomic_value_t)1, &value_old, TITUS_DLB_GASPI_TIMEOUT));
@@ -99,7 +98,7 @@ TITUS_DLB_int TITUS_DLB_impl::termination_detection()
     // else if session termination reached
     if(subtree_termintion_reached==1 && r->termination_status.global_termination_detected == 1L)
     {
-        context->logger.signal_end_notification_received();
+		TITUS_DBG << "TITUS_DLB_impl::termination_detection : end_notification_received" << std::endl;
         subtree_termintion_reached=false;  //reset
         if(left_child>0){
 			gaspi_atomic_value_t value_old;

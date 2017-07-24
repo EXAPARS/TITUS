@@ -380,7 +380,7 @@ gaspi_return_t TITUS_DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 	    gaspi_config_t config;
 		ASSERT( gaspi_config_get(&config) == GASPI_SUCCESS);
 		
-		config.queue_num = 3;
+		config.queue_num = 4;
 		config.build_infrastructure = GASPI_TOPOLOGY_DYNAMIC;
 		
 		ASSERT( gaspi_config_set(config) == GASPI_SUCCESS);
@@ -393,10 +393,10 @@ gaspi_return_t TITUS_DLB_impl::gaspi_proc_init_impl(gaspi_timeout_t timeout){
 	if (r == GASPI_SUCCESS){
 		gaspi_config_t config;
 		SUCCESS_OR_DIE( gaspi_config_get(&config));
-		if (config.queue_num < 3){
+		if (config.queue_num < 4){
 			TITUS_DBG << "TITUS_DLB_impl::gaspi_proc_init_impl : ASSERT IS GOING TO FAIL : number of queues must be at least 3. maybe gaspi_proc_init enforced it. check gaspi sources at GPI2.c:pgaspi_init_core()" << std::endl;
 		}
-		ASSERT(config.queue_num >= 3);
+		ASSERT(config.queue_num >= 4);
 		gaspi_rank_t rank; gaspi_proc_rank(& rank);
 		if (rank == 0){
 			TITUS_DBG << "TITUS_DLB_gaspi_proc_init() done using config :" << std::endl ;

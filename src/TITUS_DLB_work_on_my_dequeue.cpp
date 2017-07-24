@@ -30,7 +30,6 @@
 void TITUS_DLB_impl::write_task_to_remote_segment()
 {
     TITUS_DLB_int t1, t2;
-    t1 = rdtsc(); //! TODO : add signal
     
     DEBUG_PRINT("==============TITUS_DLB::write_task_to_remote_segment============\n");
     MetadataTask *m;
@@ -44,14 +43,12 @@ void TITUS_DLB_impl::write_task_to_remote_segment()
     m->compare_and_swap_status(context->get_rank(),context->segment_task, thief_rank, COPY_IN_PROGRESS);
     SUCCESS_OR_DIE( gaspi_write_notify(context->segment_task, 0, thief_rank, context->segment_task, 0, m->segment_size, id, value, context->queue_task, TITUS_DLB_GASPI_TIMEOUT ));
     
-    t2 = rdtsc(); //! TODO : add signal
-    context->comm_send_counter += (t2-t1);
 }
 
 void TITUS_DLB_impl::move_task_from_my_dequeue_to_my_segment()
 {
     DEBUG_PRINT("========TITUS_DLB::move_task_from_my_dequeue_to_my_segment=======\n");
-    context->logger.signal_start_put_on_segment();
+    context->time_spent_moving_from_dequeue.start();
     gaspi_atomic_value_t old_value;
     MetadataTask *m;
     m = context->get_metadata_task();
@@ -107,14 +104,15 @@ void TITUS_DLB_impl::move_task_from_my_dequeue_to_my_segment()
 
     assert(old_value == FREE_FOR_COPY);
 
-    context->logger.signal_end_put_on_segment(m->nb_task);
+    context->time_spent_moving_from_dequeue.stop();
+    context->tasks_moved_from_dequeue_count+= m->nb_task;
     return;
 }
 // so called "self-theft"
 void TITUS_DLB_impl::move_task_from_my_segment_to_my_dequeue()
 {
     DEBUG_PRINT("========TITUS_DLB::move_task_from_my_segment_to_my_dequeue=======\n");
-    context->logger.signal_start_get_from_segment();
+    context->time_spent_moving_from_segment.start();
     MetadataTask *m;
     m = context->get_metadata_task();
     
@@ -160,14 +158,15 @@ void TITUS_DLB_impl::move_task_from_my_segment_to_my_dequeue()
     }
     if(m->nb_task == 0)     m->compare_and_swap_status(context->get_rank(), context->segment_task, m->state, NO_TASK, true);
     else                    m->compare_and_swap_status(context->get_rank(), context->segment_task, m->state, TASK_AVAILABLE, true);
-    context->logger.signal_end_get_from_segment(m->nb_task);
+    context->time_spent_moving_from_segment.stop();
+    context->tasks_moved_from_segment_count += m->nb_task;
     return;
 }
     
 void TITUS_DLB_impl::do_next_task()
 {
 
-    context->logger.signal_start_task();
+    context->time_spent_solving_tasks.start();
     void *task_data,*results_ptr,*generic_task_params;
     MetadataTmp *t;
     t = context->get_metadata_tmp();
@@ -194,7 +193,8 @@ void TITUS_DLB_impl::do_next_task()
     --dq->tail;
     context->get_metadata_task()->private_tasks_count = dq->tail - dq->head;
 
-    context->logger.signal_end_task();
+    context->time_spent_solving_tasks.stop();
+    context->solved_tasks_count ++;
     return;
 }
 
@@ -248,7 +248,7 @@ void TITUS_DLB_impl::active_wait_state()
 void TITUS_DLB_impl::work_on_my_dequeue()
 {
     DEBUG_PRINT("======================TITUS_DLB::work_on_my_dequeue==============\n");
-    context->logger.signal_start_work();
+    context->time_spent_working.start();
     gaspi_atomic_value_t old_value;
     MetadataTask *m;
     MetadataTmp *t;
@@ -300,9 +300,9 @@ void TITUS_DLB_impl::work_on_my_dequeue()
 		
 		if (context->get_metadata_result()->occupancy() >= PUSH_REQUEST_MIN_OCCUPANCY){
 			//TITUS_DBG << "WARNING : TITUS_DLB_impl::work_on_my_dequeue : detected SEGMENT_PUSH_REQUESTED while working. Calling push_results_buffer" << std::endl; //TITUS_DBG.flush();
-			context->logger.signal_end_work();
+			context->time_spent_working.stop();
 			context->push_results_buffer();
-		    context->logger.signal_start_work();
+		    context->time_spent_working.start();
 
 		}
 		start_task = rdtsc();
@@ -333,5 +333,5 @@ void TITUS_DLB_impl::work_on_my_dequeue()
     return_result();
     active_wait_state();
     
-    context->logger.signal_end_work();
+    context->time_spent_working.stop();
 }

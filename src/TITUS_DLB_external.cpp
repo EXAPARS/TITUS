@@ -29,7 +29,7 @@
 
 
 // *********************************************************************
-// ***************** TITUS_DLB EXTERN C Wrappers impl ************************
+// *************** TITUS_DLB EXTERN C Wrappers impl ********************
 // *********************************************************************
 
 gaspi_return_t c_TITUS_DLB_gaspi_proc_init(gaspi_timeout_t timeout){
@@ -62,7 +62,7 @@ void c_TITUS_DLB_new_context(void **ret_val, int shared_task_segment_size, int a
 void c_TITUS_DLB_delete_context(void *context ) {
 	//~ std::cout << "c_TITUS_DLB_delete_context(context=" << context << ")" << std::endl; std::cout.flush();
 	//! DODO : MEMORY LEAK where to free ?
-    delete context;
+    delete (TITUS_DLB_Context*)context;
 }
 
 void c_TITUS_DLB_set_problem(void *context, void *problem, int task_size, int nb_task, void *result, int result_size, void *ptr_task_function, void *params) {
@@ -103,10 +103,10 @@ void c_TITUS_DLB_print_current_session(void *logger, char *filename) {
 	//~ std::cout << "c_TITUS_DLB_print_current_session(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((TITUS_DLB_Logger *)logger)->print_current_session(*out);
+        ((TITUS_Logger *)logger)->print_current_session(*out);
     }
     else{
-        ((TITUS_DLB_Logger *)logger)->print_current_session(std::cout);
+        ((TITUS_Logger *)logger)->print_current_session(std::cout);
     }
 }
 
@@ -114,46 +114,46 @@ void c_TITUS_DLB_print_agregated_session_info(void *logger, char *filename) {
 	//~ std::cout << "c_TITUS_DLB_print_agregated_session_info(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((TITUS_DLB_Logger *)logger)->print_agregated_session_info(*out);
+        ((TITUS_Logger *)logger)->print_aggregated_sessions(*out);
     }
     else{
-        ((TITUS_DLB_Logger *)logger)->print_agregated_session_info(std::cout);
+        ((TITUS_Logger *)logger)->print_aggregated_sessions(std::cout);
     }
 }
 void c_TITUS_DLB_print_all_sessions(void *logger, char *filename) {
 	//~ std::cout << "c_TITUS_DLB_print_all_sessions(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
     if (filename != nullptr && *filename != '\0') {
         std::ostream * out = new std::ofstream(filename);
-        ((TITUS_DLB_Logger *)logger)->print_all_sessions(*out);
+        ((TITUS_Logger *)logger)->print_all_sessions(*out);
     }
     else{
-        ((TITUS_DLB_Logger *)logger)->print_all_sessions(std::cout);
+        ((TITUS_Logger *)logger)->print_all_sessions(std::cout);
     }
 }
 
 
 
-
-void c_TITUS_DLB_dump_buffer(void *logger) {
+// old and not maintained
+//~ void c_TITUS_DLB_dump_buffer(void *logger) {
 	//~ std::cout << "c_TITUS_DLB_dump_buffer(logger=" << logger << ")" << std::endl; std::cout.flush();
-    ((TITUS_DLB_Logger *)logger)->dump_buffer();
-}
+    //~ ((TITUS_Logger *)logger)->dump_buffer();
+//~ }
 
-void c_TITUS_DLB_print_buffer(void *logger, char *filename) {
+//~ void c_TITUS_DLB_print_buffer(void *logger, char *filename) {
 	//~ std::cout << "c_TITUS_DLB_print_buffer(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
-    if (filename != nullptr && *filename != '\0') {
-        std::ostream * out = new std::ofstream(filename);
-        ((TITUS_DLB_Logger *)logger)->print_buffer(*out);
-    }
-    else{
-        ((TITUS_DLB_Logger *)logger)->print_buffer(std::cout);
-    }
-}
+    //~ if (filename != nullptr && *filename != '\0') {
+        //~ std::ostream * out = new std::ofstream(filename);
+        //~ ((TITUS_Logger *)logger)->print_buffer(*out);
+    //~ }
+    //~ else{
+        //~ ((TITUS_Logger *)logger)->print_buffer(std::cout);
+    //~ }
+//~ }
 
-void c_TITUS_DLB_set_autodump(void *logger, int *val, char *logdir) {
+//~ void c_TITUS_DLB_set_autodump(void *logger, int *val, char *logdir) {
 	//~ std::cout << "c_TITUS_DLB_set_autodump(logger=" << logger << ", logdir=" << logdir << ")" << std::endl; std::cout.flush();
-    ((TITUS_DLB_Logger *)logger)->set_autodump(*val!=0, logdir);
-}
+    //~ ((TITUS_Logger *)logger)->set_autodump(*val!=0, logdir);
+//~ }
 
 // *********************************************************************
 // ***************************** TITUS_DLB ***********************************
@@ -213,8 +213,8 @@ void TITUS_DLB_Context::set_problem(void *problem, int task_size, int nb_task, v
     m_impl->set_problem(problem, task_size, nb_task, result, result_size, ptr_task_function, params);
 }
 
-TITUS_DLB_Logger * TITUS_DLB_Context::get_logger() {
-    return new TITUS_DLB_Logger(m_impl->get_logger());
+TITUS_Logger * TITUS_DLB_Context::get_logger() {
+    return m_impl->get_logger();
 }
 
 DVS_Context * TITUS_DLB_Context::get_DVS_context() {
@@ -254,38 +254,4 @@ void TITUS_DLB_Context::display_metadatatmp()        { m_impl->display_metadatat
 void TITUS_DLB_Context::display_dequeue()            { m_impl->display_dequeue(); }
 void TITUS_DLB_Context::display_Context()            { m_impl->display_Context(); }
 #endif
-// *********************************************************************
-// *************************** TITUS_DLB_Logger ******************************
-// *********************************************************************
-
-int TITUS_DLB_Logger::get_some_metric() {
-    return m_impl->get_some_metric();
-}
-void TITUS_DLB_Logger::activate_some_metric() {
-    m_impl->activate_some_metric();
-}
-
-void TITUS_DLB_Logger::print_current_session(std::ostream & out)const{
-    m_impl->print_current_session(out);
-}
-void TITUS_DLB_Logger::print_agregated_session_info(std::ostream & out)const{
-    m_impl->print_agregated_session_info(out);
-}
-void TITUS_DLB_Logger::print_all_sessions(std::ostream & out)const{
-    m_impl->print_all_sessions(out);
-}
-
-void TITUS_DLB_Logger::dump_buffer() {
-    m_impl->dump_buffer();
-}
-void TITUS_DLB_Logger::print_buffer(std::ostream & out)const{
-    m_impl->print_buffer(out);
-}
-void TITUS_DLB_Logger::set_autodump(bool val, std::ostream & out) {
-    m_impl->set_autodump(val,out);
-}
-void TITUS_DLB_Logger::set_autodump(bool val, const char *logdir){
-    m_impl->set_autodump(val,logdir);
-}
-
 

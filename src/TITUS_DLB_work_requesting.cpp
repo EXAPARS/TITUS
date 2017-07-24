@@ -32,7 +32,7 @@
 TITUS_DLB_int TITUS_DLB_impl::work_requesting(gaspi_rank_t target_rank)
 {
     DEBUG_PRINT("=====================TITUS_DLB::work_requesting=====================\n");
-    context->logger.signal_start_theft(target_rank);
+    context->time_spent_stealing.start();
 
     gaspi_atomic_value_t old_value;
     MetadataTask *m;
@@ -71,7 +71,11 @@ TITUS_DLB_int TITUS_DLB_impl::work_requesting(gaspi_rank_t target_rank)
     
     TITUS_DLB_int first_id = 0;
     if (success) first_id = m->end_task_id - m->nb_task +1;
-    context->logger.signal_end_theft(victim_state, m->nb_task, first_id, target_rank, m->owner_task_rank);
+    context->time_spent_stealing.stop(victim_state == TASK_AVAILABLE);
+    context->stolen_tasks_count += m->nb_task;
+    if (victim_state == FREE_FOR_COPY) context->miss_free_for_copy++;
+    else if (victim_state == NO_TASK) context->miss_notask_count++;
+    else context->miss_target_locked_count++;
     
     if(success)    return SUCCESS;
     else         return FAILED;

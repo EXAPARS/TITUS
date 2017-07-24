@@ -465,7 +465,7 @@ BufferedSegmentMetadata::selected_elts_to_push BufferedSegmentMetadata::try_push
 	
 	free (remote_bsm);
 	
-	ctx->get_logger()->signal_results_pushed(results_pushed_count);
+	ctx->results_pushed_count += results_pushed_count;
 	//! TODO : move gaspi_wait outside of the lock (NOT TRIVIAL)
 	SUCCESS_OR_DIE( gaspi_wait(ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT) );
 	return std::move(r);
@@ -655,7 +655,7 @@ bool BufferedSegmentMetadata::try_push_buffer_elt_to(gaspi_pointer_t buffer_elt,
         gaspi_notification_id_t notification_id = dest_offset.second;
         wait_if_queue_full(ctx->queue_result,0);
         SUCCESS_OR_DIE(gaspi_write_notify( segment_id, src_offset, target, dst_seg_id, dest_offset.first, (gaspi_size_t)e->buffer_entry_size(), notification_id, 1, ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT ));
-        ctx->get_logger()->signal_results_pushed(e->nb_result);
+        ctx->results_pushed_count += e->nb_result;
         //TITUS_DBG << "BufferedSegmentMetadata::try_push_buffer_elt_to > "
 		//	<< "successfuly sent elt[" << *e << "] to segment " << (int)dst_seg_id << " on rank " << target << " as elt " << dest_offset.second << " @offset=" << dest_offset.first << std::endl; //TITUS_DBG.flush();
         return true;
@@ -718,7 +718,7 @@ void BufferedSegmentMetadata::try_push_local_transiting_results(){
 				notification_id, 1, 
 				ctx->queue_result, TITUS_DLB_GASPI_TIMEOUT 
 			));
-			ctx->get_logger()->signal_results_pushed(e->nb_result);
+			ctx->results_pushed_count += e->nb_result;
 
 			//TITUS_DBG << "BufferedSegmentMetadata::try_push_local_transiting_results > "
 			//	<< "successfuly reserved memory for elt[" << *new_e << "] to segment " << (int)ctx->segment_result << " on rank " << target_rank << " as elt " << alloc_res.second << " @offset=" << alloc_res.first << std::endl;
