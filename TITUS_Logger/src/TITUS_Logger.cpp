@@ -409,7 +409,9 @@ void SpinLock::unlock(){
 TITUS_Logger::TITUS_Logger()
 	:session_time(this,"session_time")
 {
+#ifdef _MEASURE_LOGGER_OVERHEAD
 	add_entry(&time_spent_logging);
+#endif //_MEASURE_LOGGER_OVERHEAD
 }
 
 #ifdef _MEASURE_LOGGER_OVERHEAD
