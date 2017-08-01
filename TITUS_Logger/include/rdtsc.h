@@ -1,6 +1,7 @@
 #ifndef __RDTSC_H_
 #define __RDTSC_H_
 
+#include <cstdint>
 
 // define time primitives
 #ifndef TITUS_PROC_FREQ

@@ -34,8 +34,8 @@ OBJ	:= $(patsubst src/%.cpp, obj/%.o, $(SRC))
 FSRC := $(wildcard src/*.f90)
 FOBJ := $(patsubst src/%.f90, obj/%.f90.o, $(FSRC))
 
-CFLAGS += $(TITUS_LOGGER_INC)
-DFLAGS += 
+CFLAGS += $(TITUS_LOGGER_INC) -DUSE_GASPI $(GASPI_INC)
+DFLAGS += -DUSE_GASPI $(GASPI_INC) $(GASPI_LIB)
 CXXFLAGS += $(TITUS_LOGGER_INC)
 F90FLAGS += $(TITUS_LOGGER_INC)
 
@@ -52,7 +52,7 @@ TEST_EXEC	    =
 #================================================================
 #       	Targets
 #================================================================
-lib = lib/libTITUS_Logger.so
+lib = lib/libTITUS_Logger.a
 tests_src = $(wildcard tests/*.cpp)
 tests = $(patsubst %.cpp, %, $(tests_src))
 MOD := $(patsubst src/%.f90, include/%.mod, $(FSRC))

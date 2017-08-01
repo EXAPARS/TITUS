@@ -351,44 +351,6 @@ void Logger_Overhead_Timer<size>::print(std::ostream & out, const std::string & 
 #include <TITUS_Logger.hpp>
 #include <fstream>
 
-// ********************************************************
-// ******************** C BINDINGS IMPL *******************
-// ********************************************************
-
-void * c_TITUS_Logger_new_logger(){
-	return ((void*) new TITUS_Logger());
-}
-
-void c_TITUS_Logger_print_current_session(void * logger, const char * filename, const char * prefix){
-	if (prefix == nullptr) prefix = "";
-
-	if (filename != nullptr && *filename != '\0') {
-		std::ofstream out(filename);
-		((TITUS_Logger *)logger)->print_current_session(out);
-	}
-	else{
-		((TITUS_Logger *)logger)->print_current_session(std::cout, prefix);
-	}
-
-}
-
-void c_TITUS_Logger_print_all_sessions(void * logger, const char * filename, const char * prefix){
-	if (prefix == nullptr) prefix = "";
-
-	if (filename != nullptr && *filename != '\0') {
-		std::ofstream out(filename);
-		((TITUS_Logger *)logger)->print_all_sessions(out);
-	}
-	else{
-		((TITUS_Logger *)logger)->print_all_sessions(std::cout, prefix);
-	}
-
-}
-
-void c_TITUS_Logger_reset_all_entries(void * logger){
-	((TITUS_Logger *)logger)->reset_all_entries();
-}
-
 
 // from http://anki3d.org/spinlock/
 void SpinLock::lock(){

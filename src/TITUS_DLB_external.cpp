@@ -99,37 +99,6 @@ void c_TITUS_DLB_set_DVS_context(void *context, void *arg) {
     ((TITUS_DLB_Context *)context)->set_DVS_context((DVS_Context *)arg);
 }
 
-void c_TITUS_DLB_print_current_session(void *logger, char *filename) {
-	//~ std::cout << "c_TITUS_DLB_print_current_session(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
-    if (filename != nullptr && *filename != '\0') {
-        std::ostream * out = new std::ofstream(filename);
-        ((TITUS_Logger *)logger)->print_current_session(*out);
-    }
-    else{
-        ((TITUS_Logger *)logger)->print_current_session(std::cout);
-    }
-}
-
-void c_TITUS_DLB_print_agregated_session_info(void *logger, char *filename) {
-	//~ std::cout << "c_TITUS_DLB_print_agregated_session_info(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
-    if (filename != nullptr && *filename != '\0') {
-        std::ostream * out = new std::ofstream(filename);
-        ((TITUS_Logger *)logger)->print_aggregated_sessions(*out);
-    }
-    else{
-        ((TITUS_Logger *)logger)->print_aggregated_sessions(std::cout);
-    }
-}
-void c_TITUS_DLB_print_all_sessions(void *logger, char *filename) {
-	//~ std::cout << "c_TITUS_DLB_print_all_sessions(logger=" << logger << ", filename=" << filename << ")" << std::endl; std::cout.flush();
-    if (filename != nullptr && *filename != '\0') {
-        std::ostream * out = new std::ofstream(filename);
-        ((TITUS_Logger *)logger)->print_all_sessions(*out);
-    }
-    else{
-        ((TITUS_Logger *)logger)->print_all_sessions(std::cout);
-    }
-}
 
 
 

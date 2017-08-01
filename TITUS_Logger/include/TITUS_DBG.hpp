@@ -1,8 +1,16 @@
 #ifndef _M_TITUS_DBG_H
 #define _M_TITUS_DBG_H
 
+#ifdef USE_GASPI
 #include <GASPI.h>
 #include <GASPI_Ext.h>
+#endif
+
+#include <rdtsc.h>
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #define SUCCESS_OR_DIE(f...)                                                                        \
 do                                                                                                  \
@@ -62,6 +70,7 @@ public:
 	operator std::ostream&(){return *out;}
 	
 	template <typename T>
+	//~ std::ostream & operator << (const T & arg){ return print_header() << arg;}
 	std::ostream & operator << (const T & arg){ return print_header() << arg;}
 };
 

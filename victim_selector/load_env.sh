@@ -31,9 +31,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #This will work as long as the last component of the path used to find the script is not a symlink (directory links are OK). If you want to also resolve any links to the script itself, you need a multi-line solution
 
 
-export DVS_HOME=$DLB_HOME/victim_selector
-export LD_LIBRARY_PATH=$DVS_HOME/lib:$LD_LIBRARY_PATH
-export LIBRARY_PATH=$DVS_HOME/lib:$LIBRARY_PATH
-export CPLUS_INCLUDE_PATH=$DVS_HOME/include:$CPLUS_INCLUDE_PATH
-export C_INCLUDE_PATH=$DVS_HOME/include:$C_INCLUDE_PATH
+export TITUS_DVS_HOME=$DIR
+export LD_LIBRARY_PATH=$TITUS_DVS_HOME/lib:$LD_LIBRARY_PATH
+export LIBRARY_PATH=$TITUS_DVS_HOME/lib:$LIBRARY_PATH
+export CPLUS_INCLUDE_PATH=$TITUS_DVS_HOME/include:$CPLUS_INCLUDE_PATH
+export C_INCLUDE_PATH=$TITUS_DVS_HOME/include:$C_INCLUDE_PATH
 

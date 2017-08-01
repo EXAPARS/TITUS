@@ -1,7 +1,7 @@
 # 
 # This file is part of the TITUS software.
 # https://github.com/exapars/
-# Copyright (c) 2015-2017 University of Versailles UVSQ - Exascale Computing Research - Exascale Computing Research
+# Copyright (c) 2015-2017 University of Versailles UVSQ - Exascale Computing Research
 # Copyright (c) 2017 Bull SAS
 #
 # TITUS  is a free software: you can redistribute it and/or modify  
@@ -30,12 +30,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #is a useful one-liner which will give you the full directory name of the script no matter where it is being called from.
 #This will work as long as the last component of the path used to find the script is not a symlink (directory links are OK). If you want to also resolve any links to the script itself, you need a multi-line solution
 
-export DLB_HOME=$DIR
-export LD_LIBRARY_PATH=$DLB_HOME/lib:$LD_LIBRARY_PATH
-export LIBRARY_PATH=$DLB_HOME/lib:$LIBRARY_PATH
-export CPLUS_INCLUDE_PATH=$DLB_HOME/include:$CPLUS_INCLUDE_PATH
-export C_INCLUDE_PATH=$DLB_HOME/include:$C_INCLUDE_PATH
+export TITUS_DLB_HOME=$DIR
+export LD_LIBRARY_PATH=$TITUS_DLB_HOME/lib:$LD_LIBRARY_PATH
+export LIBRARY_PATH=$TITUS_DLB_HOME/lib:$LIBRARY_PATH
+export CPLUS_INCLUDE_PATH=$TITUS_DLB_HOME/include:$CPLUS_INCLUDE_PATH
+export C_INCLUDE_PATH=$TITUS_DLB_HOME/include:$C_INCLUDE_PATH
 
-source victim_selector/load_env.sh
-source TITUS_Logger/load_env.sh
+source $TITUS_DLB_HOME/victim_selector/load_env.sh
+source $TITUS_DLB_HOME/TITUS_Logger/load_env.sh
 
